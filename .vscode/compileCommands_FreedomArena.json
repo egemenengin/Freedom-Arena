@@ -1,0 +1,42 @@
+[
+	{
+		"file": "C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\Source\\FreedomArena\\FreedomArena.Build.cs",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\bin\\HostX64\\x64\\cl.exe",
+			"@C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\.vscode\\compileCommands_FreedomArena\\FreedomArena.255.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\Source\\FreedomArena\\FreedomArena.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\bin\\HostX64\\x64\\cl.exe",
+			"@C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\.vscode\\compileCommands_FreedomArena\\FreedomArena.255.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\Source\\FreedomArena\\FreedomArena.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\bin\\HostX64\\x64\\cl.exe",
+			"@C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\.vscode\\compileCommands_FreedomArena\\FreedomArena.255.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\Source\\FreedomArena\\FreedomArenaGameModeBase.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\bin\\HostX64\\x64\\cl.exe",
+			"@C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\.vscode\\compileCommands_FreedomArena\\FreedomArena.255.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\Source\\FreedomArena\\FreedomArenaGameModeBase.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\bin\\HostX64\\x64\\cl.exe",
+			"@C:\\Users\\egeme\\Desktop\\projects\\UnrealEngine5Projects\\Freedom-Arena\\FreedomArena\\.vscode\\compileCommands_FreedomArena\\FreedomArena.255.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source"
+	}
+]
