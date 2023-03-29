@@ -26,6 +26,10 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	FORCEINLINE bool GetIsAiming() const { return bAiming; }
+	
+	UFUNCTION(BlueprintCallable)
+	float GetCrosshairSpreadMultiplier() const;
 private:
 
 	// Camera boom positioning the camera behind the character
@@ -39,6 +43,26 @@ private:
 	// Randomized gunshot sound cue
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	class USoundCue* FireSound;
+
+	// Is character aiming or not
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	bool bAiming;
+
+	// Default camera field of view value
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	float CameraDefaultFOV;
+
+	// Zoomed camera field of view value
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	float CameraZoomedFOV;
+
+	// Current camera field of view value for frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	float CameraCurrentFOV;
+
+	// Camera Zooming Interpolation Speed
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	float ZoomInterpSpeed;
 
 	// Muzzle flash when shot at Muzzle Socket
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
@@ -55,6 +79,7 @@ private:
 	// Smoke trail for bullets
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* BeamParticles;
+
 	
 public:
 
@@ -67,12 +92,61 @@ public:
 protected:
 
 	// Movement Speed 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAcces = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
 	float MovementSpeed = 100.f;
 
+	// Scale factor for mouse turn sensivity while aiming
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"), meta = (ClampMin = "0.0"), meta = (ClampMax = "1.0"))
+	float MouseAimingSensScale;
+
+	// Scale factor for mouse turn sensivity while not aiming
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"), meta = (ClampMin = "0.0"), meta = (ClampMax = "1.0"))
+	float MouseHipSensScale;
+
 	// Base Turn Rate, in deg/sec.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAcces = "true"))
-	float TurnRate = 45.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float TurnRate;
+
+	// Turn rate while aiming
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float AimingTurnRate;
+
+	// Turn rate while not aiming
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float HipTurnRate;
+
+	// Determines the spread of the crosshair
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float CrosshairSpreadMultiplier;
+	
+	// Velocity component for crosshair spread
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float CrosshairVelocityFactor;
+
+	// In air component for crosshair spread
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float CrosshairInAirFactor;
+
+	// Aim component for crosshair spread 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float CrosshairAimFactor;
+
+	// SHooting component for crosshair spread 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float CrosshairShootingFactor;
+
+	//
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float ShootTimeDuration;
+
+	//
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	bool bFiringBullet;
+
+	//
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	FTimerHandle CrosshairShootTimer;
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UInputMappingContext* InputMapping;
@@ -80,33 +154,63 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UShooterCharacterInputConfigData* InputActions;
 
+	/* INPUT HANDLER FUNCTIONS */
 	// Handle movement input
 	UFUNCTION()
-	void MoveHandler(const FInputActionValue& value);
+	void MoveInputHandler(const FInputActionValue& value);
 
 	// Handle look input
 	UFUNCTION()
-	void LookHandler(const FInputActionValue& value);
+	void LookInputHandler(const FInputActionValue& value);
 
 	// Handle jump input
 	UFUNCTION()
-	void JumpHandler(const FInputActionValue& value);
+	void JumpInputHandler(const FInputActionValue& value);
 
 	// Handle crouch input
 	UFUNCTION()
-	void CrouchHandler(const FInputActionValue& value);
+	void CrouchInputHandler(const FInputActionValue& value);
 
 	// Handle reload input
 	UFUNCTION()
-	void ReloadHandler(const FInputActionValue& value);
+	void ReloadInputHandler(const FInputActionValue& value);
 
 	// Handle change weapon input
-	void ChangeWeaponHandler(const FInputActionValue& value);
+	void ChangeWeaponInputHandler(const FInputActionValue& value);
 
 	// Handle fire input
 	UFUNCTION()
-	void FireHandler(const FInputActionValue& value);
+	void FireInputHandler(const FInputActionValue& value);
+
+	// Handle aim input to set aiming
+	UFUNCTION()
+	void AimingInputHandler(const FInputActionValue& value);
+	/* ---------------------------------------------- */
 
 	// Getting the beam end point
+	UFUNCTION()
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation);
+
+	// Setting Current Camera FOV 
+	UFUNCTION()
+	void SetCameraFOV(float DeltaTime);
+
+	// Setting Turn Rate
+	UFUNCTION()
+	void SetTurnRate();
+
+	// Setting Mouse Sensivity Scale Factor
+	UFUNCTION()
+	void SetMouseSensScale(FVector2D& LookValue);
+
+	// Set Crosshair spread multiplier
+	UFUNCTION()
+	void SetCrosshairSpread(float DeltaTime);
+
+	// 
+	UFUNCTION()
+	void StartCrosshairBulletFire();
+	// 
+	UFUNCTION()
+	void FinishCrosshairBulletFire();
 };

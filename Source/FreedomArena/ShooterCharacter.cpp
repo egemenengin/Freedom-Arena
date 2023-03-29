@@ -16,8 +16,31 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Particles/ParticleSystemComponent.h"
 // Sets default values
-AShooterCharacter::AShooterCharacter()
+AShooterCharacter::AShooterCharacter() :
+	bAiming(false),
+	TurnRate(0.f),
+	// Camera field of view values
+	CameraDefaultFOV(0.f), // set in BeginPlay
+	CameraZoomedFOV(40.f),
+	CameraCurrentFOV(0.f),
+	ZoomInterpSpeed(20.f),
+	// Turn rates for aiming or not 
+	AimingTurnRate(20.f),
+	HipTurnRate(90.f),
+	// Mouse turn sensivity scale factors
+	MouseAimingSensScale(0.25f),
+	MouseHipSensScale(1.0f),
+	// Crosshair Spread Factors
+	CrosshairSpreadMultiplier(0.f),
+	CrosshairVelocityFactor(0.f),
+	CrosshairInAirFactor(0.f),
+	CrosshairAimFactor(0.f),
+	CrosshairShootingFactor(0.f),
+	// Bullet fire timer variables
+	ShootTimeDuration(0.05f),
+	bFiringBullet(false)
 {
+	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	// Dont rotate when the controller rotates. Let the controller only affect the camera.
@@ -27,9 +50,9 @@ AShooterCharacter::AShooterCharacter()
 	// Create and setup CameraBoom
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.f; // The camera follows at this distance behind the character
+	CameraBoom->TargetArmLength = 200.f; // The camera follows at this distance behind the character
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-	CameraBoom->SocketOffset = FVector(0.f, 50.f, 60.f);
+	CameraBoom->SocketOffset = FVector(0.f, 50.f, 70.f);
 
 	// Create and setup FollowCam
 	FollowCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -51,6 +74,12 @@ void AShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	if (FollowCam)
+	{
+		CameraDefaultFOV = FollowCam->FieldOfView;
+		CameraCurrentFOV = CameraDefaultFOV;
+	}
+	TurnRate = HipTurnRate;
 }
 
 // Called every frame
@@ -58,6 +87,14 @@ void AShooterCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Setting Follow Camera FOV according to aiming
+	SetCameraFOV(DeltaTime);
+
+	// Set turn rate based on aiming
+	SetTurnRate();
+
+	// Set current crosshairspread
+	SetCrosshairSpread(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -79,16 +116,17 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	UEnhancedInputComponent* enhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 
 	// Bind Input Actions
-	enhancedInputComponent->BindAction(InputActions->InputMove, ETriggerEvent::Triggered, this, &AShooterCharacter::MoveHandler);
-	enhancedInputComponent->BindAction(InputActions->InputLook, ETriggerEvent::Triggered, this, &AShooterCharacter::LookHandler);
+	enhancedInputComponent->BindAction(InputActions->InputMove, ETriggerEvent::Triggered, this, &AShooterCharacter::MoveInputHandler);
+	enhancedInputComponent->BindAction(InputActions->InputLook, ETriggerEvent::Triggered, this, &AShooterCharacter::LookInputHandler);
 
-	enhancedInputComponent->BindAction(InputActions->InputJump, ETriggerEvent::Started, this, &AShooterCharacter::JumpHandler);
-	enhancedInputComponent->BindAction(InputActions->InputCrouch, ETriggerEvent::Started, this, &AShooterCharacter::CrouchHandler);
+	enhancedInputComponent->BindAction(InputActions->InputJump, ETriggerEvent::Started, this, &AShooterCharacter::JumpInputHandler);
+	enhancedInputComponent->BindAction(InputActions->InputCrouch, ETriggerEvent::Started, this, &AShooterCharacter::CrouchInputHandler);
 
-	enhancedInputComponent->BindAction(InputActions->InputFire, ETriggerEvent::Started, this, &AShooterCharacter::FireHandler);
+	enhancedInputComponent->BindAction(InputActions->InputFire, ETriggerEvent::Started, this, &AShooterCharacter::FireInputHandler);
+	enhancedInputComponent->BindAction(InputActions->InputAiming, ETriggerEvent::Triggered, this, &AShooterCharacter::AimingInputHandler);
 }
 
-void AShooterCharacter::MoveHandler(const FInputActionValue& value)
+void AShooterCharacter::MoveInputHandler(const FInputActionValue& value)
 {
 	if (Controller != nullptr)
 	{
@@ -113,12 +151,12 @@ void AShooterCharacter::MoveHandler(const FInputActionValue& value)
 	}
 }
 
-void AShooterCharacter::LookHandler(const FInputActionValue& value)
+void AShooterCharacter::LookInputHandler(const FInputActionValue& value)
 {
 	if (Controller != nullptr)
 	{
-		const FVector2D LookValue = value.Get<FVector2D>();
-
+		FVector2D LookValue = value.Get<FVector2D>();
+		SetMouseSensScale(LookValue);
 		if (LookValue.Y != 0.f)
 		{
 			// Calculate delta for this frame for the rate information 
@@ -132,7 +170,7 @@ void AShooterCharacter::LookHandler(const FInputActionValue& value)
 	}
 }
 
-void AShooterCharacter::JumpHandler(const FInputActionValue& value)
+void AShooterCharacter::JumpInputHandler(const FInputActionValue& value)
 {
 	if (value.Get<float>() > 0)
 	{
@@ -141,12 +179,12 @@ void AShooterCharacter::JumpHandler(const FInputActionValue& value)
 
 }
 
-void AShooterCharacter::CrouchHandler(const FInputActionValue& value)
+void AShooterCharacter::CrouchInputHandler(const FInputActionValue& value)
 {
 
 }
 
-void AShooterCharacter::FireHandler(const FInputActionValue& value)
+void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 {
 	// Shoting Sound 
 	if (FireSound)
@@ -202,7 +240,11 @@ void AShooterCharacter::FireHandler(const FInputActionValue& value)
 		AnimInstance->Montage_JumpToSection(FName("StartFire"));
 	}
 
+	// Start
+	StartCrosshairBulletFire();
 }
+
+
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation)
 {
@@ -259,12 +301,139 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 	return false;
 }
 
-void AShooterCharacter::ReloadHandler(const FInputActionValue& value)
+
+
+void AShooterCharacter::AimingInputHandler(const FInputActionValue& value)
+{
+	if (value.Get<float>() > 0.f)
+	{
+		bAiming = true;
+	}
+	else
+	{
+		bAiming = false;
+	}
+
+}
+
+void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
 {
 
 }
 
-void AShooterCharacter::ChangeWeaponHandler(const FInputActionValue& value)
+void AShooterCharacter::ChangeWeaponInputHandler(const FInputActionValue& value)
 {
 
+}
+
+
+void AShooterCharacter::SetCameraFOV(float DeltaTime)
+{
+	// Set current field of view according to aiming or not
+	if (bAiming)
+	{
+		// Interpolate to zoomed FOV
+		CameraCurrentFOV = FMath::FInterpTo(CameraCurrentFOV, CameraZoomedFOV, DeltaTime, ZoomInterpSpeed);
+	}
+	else
+	{
+		// Interpolate to default FOV
+		CameraCurrentFOV = FMath::FInterpTo(CameraCurrentFOV, CameraDefaultFOV, DeltaTime, ZoomInterpSpeed);
+	}
+
+	FollowCam->SetFieldOfView(CameraCurrentFOV);
+}
+
+void AShooterCharacter::SetTurnRate()
+{
+	// Set current Turn Rate according to aiming or not
+	if (bAiming)
+	{
+		TurnRate = AimingTurnRate;
+	}
+	else
+	{
+		TurnRate = HipTurnRate;
+	}
+}
+
+void AShooterCharacter::SetMouseSensScale(FVector2D& LookValue)
+{
+	if (bAiming)
+	{
+		LookValue = LookValue * MouseAimingSensScale;
+	}
+	else
+	{
+		LookValue = LookValue * MouseHipSensScale;
+	}
+}
+
+void AShooterCharacter::SetCrosshairSpread(float DeltaTime)
+{
+	// Set velocity factor
+	FVector2D WalkSpeedRange = FVector2D(0.f, 600.f);
+	FVector2D VelocityMultiplierRange = FVector2D(0.f, 1.0f);
+	FVector CurrentVelocity = GetVelocity();
+	CurrentVelocity.Z = 0.f;
+	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityMultiplierRange, CurrentVelocity.Size());
+
+	// Set InAir Factor
+	if (GetCharacterMovement()->IsFalling()) // is in air?
+	{
+		// Spread the crosshair slowly while in air
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 2.f, DeltaTime, 2.f);
+	}
+	else
+	{
+		CrosshairInAirFactor = FMath::FInterpTo(CrosshairInAirFactor, 0.f, DeltaTime, 15.f);
+	}
+
+	// Set Aim Factor
+	if (bAiming)
+	{
+		CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.5f, DeltaTime, 30.f);
+	}
+	else
+	{
+		CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, 30.f);
+	}
+
+	// Set Bullet Fire Factor
+	if (bFiringBullet)
+	{
+		CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.3f, DeltaTime, 30.f);
+	}
+	else
+	{
+		CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, 30.f);
+	}
+
+	CrosshairSpreadMultiplier = 
+		0.5f + 
+		CrosshairVelocityFactor + 
+		CrosshairInAirFactor - 
+		CrosshairAimFactor + 
+		CrosshairShootingFactor;
+}
+
+void AShooterCharacter::StartCrosshairBulletFire()
+{
+	bFiringBullet = true;
+
+	GetWorldTimerManager().SetTimer(
+		CrosshairShootTimer, 
+		this, 
+		&AShooterCharacter::FinishCrosshairBulletFire, 
+		ShootTimeDuration, false);
+}
+
+void AShooterCharacter::FinishCrosshairBulletFire()
+{
+	bFiringBullet = false;
+}
+
+float AShooterCharacter::GetCrosshairSpreadMultiplier() const
+{
+	return CrosshairSpreadMultiplier;
 }
