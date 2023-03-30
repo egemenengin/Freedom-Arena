@@ -135,18 +135,27 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
 	float CrosshairShootingFactor;
 
-	//
+	// Crosshair bullet fire factor timer variables
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
-	float ShootTimeDuration;
+	float CrosshairShootTimeDuration;
 
-	//
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
-	bool bFiringBullet;
+	bool bCrosshairShooting;
 
-	//
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
 	FTimerHandle CrosshairShootTimer;
 
+
+	// True when we can fire. False when waiting for shooting delay
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	bool bCanShoot;
+	
+	// Delay between shots
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
+	float ShootingDelay;
+
+	// Sets timer between shots
+	FTimerHandle ShootingTimerHandle;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UInputMappingContext* InputMapping;
@@ -209,8 +218,11 @@ protected:
 
 	// 
 	UFUNCTION()
-	void StartCrosshairBulletFire();
+	void StartCrosshairShooting();
 	// 
 	UFUNCTION()
-	void FinishCrosshairBulletFire();
+	void FinishCrosshairShooting();
+
+	UFUNCTION()
+	void SetCanShoot();
 };

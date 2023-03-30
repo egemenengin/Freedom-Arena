@@ -36,9 +36,12 @@ AShooterCharacter::AShooterCharacter() :
 	CrosshairInAirFactor(0.f),
 	CrosshairAimFactor(0.f),
 	CrosshairShootingFactor(0.f),
-	// Bullet fire timer variables
-	ShootTimeDuration(0.05f),
-	bFiringBullet(false)
+	// Crosshair bullet fire factor timer variables
+	CrosshairShootTimeDuration(0.05f),
+	bCrosshairShooting(false),
+	// Shooting delay variables
+	bCanShoot(true),
+	ShootingDelay(0.15f)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -122,7 +125,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	enhancedInputComponent->BindAction(InputActions->InputJump, ETriggerEvent::Started, this, &AShooterCharacter::JumpInputHandler);
 	enhancedInputComponent->BindAction(InputActions->InputCrouch, ETriggerEvent::Started, this, &AShooterCharacter::CrouchInputHandler);
 
-	enhancedInputComponent->BindAction(InputActions->InputFire, ETriggerEvent::Started, this, &AShooterCharacter::FireInputHandler);
+	enhancedInputComponent->BindAction(InputActions->InputFire, ETriggerEvent::Triggered, this, &AShooterCharacter::FireInputHandler);
 	enhancedInputComponent->BindAction(InputActions->InputAiming, ETriggerEvent::Triggered, this, &AShooterCharacter::AimingInputHandler);
 }
 
@@ -186,62 +189,71 @@ void AShooterCharacter::CrouchInputHandler(const FInputActionValue& value)
 
 void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 {
-	// Shoting Sound 
-	if (FireSound)
+	if (bCanShoot)
 	{
-		UGameplayStatics::PlaySound2D(this, FireSound);
-	}
-
-	// Get Muzzle Socket
-	const USkeletalMeshSocket* MuzzleSocket = GetMesh()->GetSocketByName("muzzleSocket");
-
-	if (MuzzleSocket != nullptr)
-	{
-		// Get Socket Transform
-		const FTransform socketTransform = MuzzleSocket->GetSocketTransform(GetMesh());
-
-		// Spawn Muzzle Flash
-		if (MuzzleFlash != nullptr)
+		bCanShoot = false;
+		// Shoting Sound 
+		if (FireSound)
 		{
-			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash, socketTransform);
+			UGameplayStatics::PlaySound2D(this, FireSound);
 		}
 
+		// Get Muzzle Socket
+		const USkeletalMeshSocket* MuzzleSocket = GetMesh()->GetSocketByName("muzzleSocket");
 
-		FVector BeamEndPoint;
-		bool  bSetBeamEnd = GetBeamEndLocation(socketTransform.GetLocation(), BeamEndPoint);
-
-		if (bSetBeamEnd) // was the setting BeamEndPoint successful?
+		if (MuzzleSocket != nullptr)
 		{
+			// Get Socket Transform
+			const FTransform socketTransform = MuzzleSocket->GetSocketTransform(GetMesh());
 
-			// Spawn impact particles at end point
-			if (ImpactParticles)
+			// Spawn Muzzle Flash
+			if (MuzzleFlash != nullptr)
 			{
-				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, BeamEndPoint);
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash, socketTransform);
 			}
 
-			if (BeamParticles)
+
+			FVector BeamEndPoint;
+			bool  bSetBeamEnd = GetBeamEndLocation(socketTransform.GetLocation(), BeamEndPoint);
+
+			if (bSetBeamEnd) // was the setting BeamEndPoint successful?
 			{
-				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BeamParticles, socketTransform);
-				if (Beam != nullptr)
+
+				// Spawn impact particles at end point
+				if (ImpactParticles)
 				{
-					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, BeamEndPoint);
 				}
-			
+
+				if (BeamParticles)
+				{
+					UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BeamParticles, socketTransform);
+					if (Beam != nullptr)
+					{
+						Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+					}
+
+				}
 			}
 		}
-	}
-
-	// HipFireMontage which is shoting animation
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	
-	if (AnimInstance != nullptr && HipFireMontage != nullptr)
-	{
-		AnimInstance->Montage_Play(HipFireMontage);
-		AnimInstance->Montage_JumpToSection(FName("StartFire"));
-	}
 
-	// Start
-	StartCrosshairBulletFire();
+		// HipFireMontage which is shoting animation
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	
+		if (AnimInstance != nullptr && HipFireMontage != nullptr)
+		{
+			AnimInstance->Montage_Play(HipFireMontage);
+			AnimInstance->Montage_JumpToSection(FName("StartFire"));
+		}
+
+		// Set bCrosshairBulletFire to true and start crosshair bullet fire timer to set it false again.
+		StartCrosshairShooting();
+
+
+		GetWorldTimerManager().SetTimer(ShootingTimerHandle, this, &AShooterCharacter::SetCanShoot, ShootingDelay, false);
+
+	}
 }
 
 
@@ -400,7 +412,7 @@ void AShooterCharacter::SetCrosshairSpread(float DeltaTime)
 	}
 
 	// Set Bullet Fire Factor
-	if (bFiringBullet)
+	if (bCrosshairShooting)
 	{
 		CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.3f, DeltaTime, 30.f);
 	}
@@ -417,20 +429,25 @@ void AShooterCharacter::SetCrosshairSpread(float DeltaTime)
 		CrosshairShootingFactor;
 }
 
-void AShooterCharacter::StartCrosshairBulletFire()
+void AShooterCharacter::StartCrosshairShooting()
 {
-	bFiringBullet = true;
+	bCrosshairShooting = true;
 
 	GetWorldTimerManager().SetTimer(
 		CrosshairShootTimer, 
 		this, 
-		&AShooterCharacter::FinishCrosshairBulletFire, 
-		ShootTimeDuration, false);
+		&AShooterCharacter::FinishCrosshairShooting,
+		CrosshairShootTimeDuration, false);
 }
 
-void AShooterCharacter::FinishCrosshairBulletFire()
+void AShooterCharacter::FinishCrosshairShooting()
 {
-	bFiringBullet = false;
+	bCrosshairShooting = false;
+}
+
+void AShooterCharacter::SetCanShoot()
+{
+	bCanShoot = !bCanShoot;
 }
 
 float AShooterCharacter::GetCrosshairSpreadMultiplier() const
