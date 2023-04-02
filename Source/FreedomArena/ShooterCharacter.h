@@ -25,11 +25,10 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	FORCEINLINE bool GetIsAiming() const { return bAiming; }
 	
 	UFUNCTION(BlueprintCallable)
 	float GetCrosshairSpreadMultiplier() const;
+
 private:
 
 	// Camera boom positioning the camera behind the character
@@ -89,6 +88,12 @@ public:
 	// Returns the CameraBoom subobject 
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; };
 
+	FORCEINLINE bool GetIsAiming() const { return bAiming; }
+
+	FORCEINLINE int8 GetOverlappedItemCount() const { return OverlappedItemCount; }
+
+	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
+	void IncrementOverlappedItemCount(int8 Amount);
 protected:
 
 	// Movement Speed 
@@ -157,9 +162,29 @@ protected:
 	// Sets timer between shots
 	FTimerHandle ShootingTimerHandle;
 
+	// True if we should trace every frame for items
+	bool bShouldTraceForItems;
+	
+	// Number of overlapped AItems
+	int8 OverlappedItemCount;
+
+	// The AItem that trace hit last frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	class AItem* TraceHitItemLastFrame;
+
+	// Range that player can see AItem
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float ItemTraceHitRange;
+
+	// Range that player can see AItem
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float GunTraceHitRange;
+
+	// Input mapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UInputMappingContext* InputMapping;
 
+	// Hold input actions
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UShooterCharacterInputConfigData* InputActions;
 
@@ -216,13 +241,23 @@ protected:
 	UFUNCTION()
 	void SetCrosshairSpread(float DeltaTime);
 
-	// 
+	// Set bCrosshairShooting to true
 	UFUNCTION()
 	void StartCrosshairShooting();
-	// 
+
+	// Set bCrosshairShooting to false
 	UFUNCTION()
 	void FinishCrosshairShooting();
 
+	// Set bCanShoot to the opposite of its current value
 	UFUNCTION()
 	void SetCanShoot();
+
+	// Line trace for items under the crosshair
+	UFUNCTION()
+	bool TraceUnderCrosshair(FHitResult& OutHitResult, const float TraceRange);
+
+	// Trace for items if bShouldTraceForItems is true which means OverlappedItemCount > 0
+	UFUNCTION()
+	void TraceForItems();
 };

@@ -15,6 +15,8 @@
 #include "Sound/SoundCue.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Particles/ParticleSystemComponent.h"
+
+#include "Weapon.h"
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
 	bAiming(false),
@@ -41,7 +43,13 @@ AShooterCharacter::AShooterCharacter() :
 	bCrosshairShooting(false),
 	// Shooting delay variables
 	bCanShoot(true),
-	ShootingDelay(0.15f)
+	ShootingDelay(0.15f),
+	// Trace variables
+	ItemTraceHitRange(300.f),
+	GunTraceHitRange(10'000.f),
+	// Item trace variables
+	bShouldTraceForItems(false)
+	
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -98,6 +106,10 @@ void AShooterCharacter::Tick(float DeltaTime)
 
 	// Set current crosshairspread
 	SetCrosshairSpread(DeltaTime);
+
+	// Check bShouldTraceForItems which means checking OverlappedItemCount and then trace for items 
+	TraceForItems();
+	
 }
 
 // Called to bind functionality to input
@@ -260,55 +272,35 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation)
 {
-	// Get Current Size of the Viewport
-	FVector2D ViewportSize;
-	if (GEngine != nullptr && GEngine->GameViewport != nullptr)
+
+	// Check for crosshair tracehit
+	FHitResult CrosshairHitResult;
+	bool bCrosshairTrace = TraceUnderCrosshair(CrosshairHitResult, GunTraceHitRange);
+	if (bCrosshairTrace)
 	{
-		GEngine->GameViewport->GetViewportSize(ViewportSize);
-	}
-
-
-	// Get Screen Space Location of Crosshairs
-	FVector2D CrosshairLocation(ViewportSize.X / 2.f, ViewportSize.Y / 2.f);
-	CrosshairLocation.Y -= 25.f;
-
-	// Get World Position of Crosshairs
-	FVector CrosshairWorldPosition;
-	FVector CrosshairWorldDirection;
-	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld(UGameplayStatics::GetPlayerController(this, 0),
-		CrosshairLocation, CrosshairWorldPosition, CrosshairWorldDirection);
-
-	if (bScreenToWorld) // was the deprojection successful?
-	{
-		FHitResult ScreenTraceHit;
-		const FVector Start = CrosshairWorldPosition;
-		const FVector End = CrosshairWorldPosition + CrosshairWorldDirection * 50'000.f;
-
-		// Set beam end to line trace end point
-		outBeamLocation = End;
-
-		// Trace outward from crosshair world location
-		GetWorld()->LineTraceSingleByChannel(ScreenTraceHit, Start, End, ECollisionChannel::ECC_Visibility);
-
-		if (ScreenTraceHit.bBlockingHit) // was there a trace hit?
+		if (CrosshairHitResult.bBlockingHit)
 		{
-			// Set Beam End Point to Trace Hit Location
-			outBeamLocation = ScreenTraceHit.Location;
+			outBeamLocation = CrosshairHitResult.Location;
 		}
-
+		else
+		{
+			outBeamLocation = CrosshairHitResult.TraceEnd;
+			
+		}
 		// Perform second line trace, this time from the gun barrel 
 		FHitResult WeaponHitResult;
 		const FVector WeaponTraceStart = MuzzleSocketLocation;
 		const FVector WeaponTraceEnd = outBeamLocation;
 		GetWorld()->LineTraceSingleByChannel(WeaponHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
 
+		// TODO Delete
+		//DrawDebugLine(GetWorld(), WeaponTraceStart, WeaponHitResult.Location, FColor::Red, true, 5.f);
+
 		if (WeaponHitResult.bBlockingHit) // is there any object between barrel and BeamEndPoint?
 		{
 			outBeamLocation = WeaponHitResult.Location;
 		}
-
 		return true;
-		
 	}
 	return false;
 }
@@ -450,7 +442,93 @@ void AShooterCharacter::SetCanShoot()
 	bCanShoot = !bCanShoot;
 }
 
+
 float AShooterCharacter::GetCrosshairSpreadMultiplier() const
 {
 	return CrosshairSpreadMultiplier;
+}
+
+void AShooterCharacter::IncrementOverlappedItemCount(int8 Amount)
+{
+	OverlappedItemCount += Amount;
+	if (OverlappedItemCount <= 0)
+	{
+		OverlappedItemCount = 0;
+		bShouldTraceForItems = false;
+	}
+	else
+	{
+		bShouldTraceForItems = true;
+	}
+}
+
+bool AShooterCharacter::TraceUnderCrosshair(FHitResult& OutHitResult, const float TraceRange)
+{
+	// Get viewport size
+	FVector2D ViewportSize;
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->GetViewportSize(ViewportSize);
+	}
+
+	// Get Screen Space Location of Crosshairs
+	FVector2D CrosshairLocation = FVector2D(ViewportSize.X / 2, ViewportSize.Y / 2);
+	CrosshairLocation.Y -= 25.f;
+	
+	// Get World Position of Crosshairs
+	FVector CrosshairWorldPosition;
+	FVector CrosshairWorldDirection;
+	bool bScreenToWorld = UGameplayStatics::DeprojectScreenToWorld(
+		UGameplayStatics::GetPlayerController(this,0),
+		CrosshairLocation, CrosshairWorldPosition,
+		CrosshairWorldDirection);
+
+	if (bScreenToWorld)
+	{
+		//Trace from crosshair to world
+
+		const FVector Start = CrosshairWorldPosition;
+		const FVector End = Start + CrosshairWorldDirection * TraceRange;
+		GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECollisionChannel::ECC_Visibility);
+
+		return true;
+	}
+
+	return false;
+}
+
+void AShooterCharacter::TraceForItems()
+{
+	if (bShouldTraceForItems)
+	{
+		FHitResult ItemTraceResult;
+		bool bTraceHit = TraceUnderCrosshair(ItemTraceResult, ItemTraceHitRange);
+		if (ItemTraceResult.bBlockingHit)
+		{
+			AItem* HitItem = Cast<AItem>(ItemTraceResult.GetActor());
+			if (HitItem != nullptr && HitItem->GetPickupWidget() != nullptr)
+			{
+				//Show Item's pickup widget
+				HitItem->GetPickupWidget()->SetVisibility(true);
+			}
+
+			// check it hit an AItem last frame
+			if (TraceHitItemLastFrame)
+			{
+				if (HitItem != TraceHitItemLastFrame)
+				{
+					// It is hitting a different AItem this fram from last frame or HitItem is null
+					TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+				}
+			}
+
+			// Store a reference to HitItem for next frame
+			TraceHitItemLastFrame = HitItem;
+		}
+		else if (TraceHitItemLastFrame)
+		{
+			TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+		}
+	}
+	
 }
