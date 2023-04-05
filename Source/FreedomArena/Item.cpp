@@ -10,6 +10,7 @@
 AItem::AItem():
 	Type(EItemType::EIT_Default),
 	Rarity(EItemRarity::EIR_Common),
+	State(EItemState::EIS_NotEquipped),
 	ItemName(FString("Default")),
 	ItemAmount(0)
 {
@@ -31,6 +32,7 @@ AItem::AItem():
 	AreaSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AreaSphere"));
 	AreaSphere->SetupAttachment(RootComponent);
 
+
 }
 
 // Called when the game starts or when spawned
@@ -49,6 +51,11 @@ void AItem::BeginPlay()
 	{
 		// Sets the ActiveStars array of bools based on rarity
 		SetActiveStars();
+	}
+	// If the item is not equipped already or the player doesnt have in the beginnin of the game, 
+	if (State != EItemState::EIS_Equipped && State != EItemState::EIS_PickedUp)
+	{
+		SetItemState(EItemState::EIS_NotEquipped);
 	}
 }
 
@@ -89,6 +96,12 @@ void AItem::Tick(float DeltaTime)
 
 }
 
+void AItem::SetItemState(EItemState itemState)
+{
+	State = itemState;
+	SetItemProperties(State);
+}
+
 void AItem::SetActiveStars()
 {
 	int NumberOfStars = 0;
@@ -123,6 +136,79 @@ void AItem::SetActiveStars()
 		{
 			ActiveStars.Add(false);
 		}
+	}
+}
+
+void AItem::SetItemProperties(EItemState itemState)
+{
+	switch (itemState)
+	{
+		case EItemState::EIS_NotEquipped:
+			// Set mesh properties
+			ItemMesh->SetSimulatePhysics(false);
+			ItemMesh->SetEnableGravity(false);
+			ItemMesh->SetVisibility(true);
+			ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Set AreaSphere properties
+			AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+			AreaSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+			// Set Collision box properties
+			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			CollisionBox->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
+			CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+			break;
+
+		case EItemState::EIS_Equipped:
+			// Set mesh properties
+			ItemMesh->SetSimulatePhysics(false);
+			ItemMesh->SetEnableGravity(false);
+			ItemMesh->SetVisibility(true);
+			ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Set AreaSphere properties
+			AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Set Collision box properties
+			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			break;
+
+		case EItemState::EIS_EquipInterping:
+			break;
+
+		case EItemState::EIS_PickedUp:
+
+			break;
+
+		case EItemState::EIS_Falling:
+			// Set mesh properties
+			ItemMesh->SetSimulatePhysics(true);
+			ItemMesh->SetEnableGravity(true);
+			ItemMesh->SetVisibility(true);
+			ItemMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			ItemMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Block);
+	
+
+			// Set AreaSphere properties
+			AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Set Collision box properties
+			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+
+			break;
+
+		default:
+			break;
 	}
 }
 

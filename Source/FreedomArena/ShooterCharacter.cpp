@@ -91,6 +91,11 @@ void AShooterCharacter::BeginPlay()
 		CameraCurrentFOV = CameraDefaultFOV;
 	}
 	TurnRate = HipTurnRate;
+
+	// Hide the gun which is attached to skeleton
+	GetMesh()->HideBoneByName(TEXT("weapon"), EPhysBodyOp::PBO_None);
+	EquipWeapon(SpawnDefaultWeapon());
+
 }
 
 // Called every frame
@@ -139,6 +144,9 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 	enhancedInputComponent->BindAction(InputActions->InputFire, ETriggerEvent::Triggered, this, &AShooterCharacter::FireInputHandler);
 	enhancedInputComponent->BindAction(InputActions->InputAiming, ETriggerEvent::Triggered, this, &AShooterCharacter::AimingInputHandler);
+
+	enhancedInputComponent->BindAction(InputActions->InputPickupItem, ETriggerEvent::Started, this, &AShooterCharacter::PickupItemInputHandler);
+	enhancedInputComponent->BindAction(InputActions->InputDropItem, ETriggerEvent::Started, this, &AShooterCharacter::DropItemInputHandler);
 }
 
 void AShooterCharacter::MoveInputHandler(const FInputActionValue& value)
@@ -211,7 +219,7 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 		}
 
 		// Get Muzzle Socket
-		const USkeletalMeshSocket* MuzzleSocket = GetMesh()->GetSocketByName("muzzleSocket");
+		const USkeletalMeshSocket* MuzzleSocket = GetMesh()->GetSocketByName("muzzleSocket_r");
 
 		if (MuzzleSocket != nullptr)
 		{
@@ -268,13 +276,14 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 	}
 }
 
-
-
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation)
 {
 
 	// Check for crosshair tracehit
 	FHitResult CrosshairHitResult;
+
+	// TODO: GunTraceHitRange = EquippedWeapon->GetRange();
+
 	bool bCrosshairTrace = TraceUnderCrosshair(CrosshairHitResult, GunTraceHitRange);
 	if (bCrosshairTrace)
 	{
@@ -305,8 +314,6 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 	return false;
 }
 
-
-
 void AShooterCharacter::AimingInputHandler(const FInputActionValue& value)
 {
 	if (value.Get<float>() > 0.f)
@@ -318,6 +325,27 @@ void AShooterCharacter::AimingInputHandler(const FInputActionValue& value)
 		bAiming = false;
 	}
 
+}
+
+void AShooterCharacter::PickupItemInputHandler(const FInputActionValue& value)
+{
+	if (value.Get<float>() > 0)
+	{
+		// TODO pickup item
+		if (TraceHitItemLastFrame)
+		{
+			AWeapon* traceHitWeapon = Cast<AWeapon>(TraceHitItemLastFrame);
+			SwapWeapon(traceHitWeapon);
+		}
+	}
+}
+
+void AShooterCharacter::DropItemInputHandler(const FInputActionValue& value)
+{
+	if (value.Get<float>() > 0)
+	{
+		DropWeapon();
+	}
 }
 
 void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
@@ -490,7 +518,8 @@ bool AShooterCharacter::TraceUnderCrosshair(FHitResult& OutHitResult, const floa
 		const FVector Start = CrosshairWorldPosition;
 		const FVector End = Start + CrosshairWorldDirection * TraceRange;
 		GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECollisionChannel::ECC_Visibility);
-
+		// TODO Delete
+		//DrawDebugLine(GetWorld(), Start, End, FColor::Red, true, 5.f);
 		return true;
 	}
 
@@ -513,7 +542,7 @@ void AShooterCharacter::TraceForItems()
 			}
 
 			// check it hit an AItem last frame
-			if (TraceHitItemLastFrame)
+			if (TraceHitItemLastFrame != nullptr)
 			{
 				if (HitItem != TraceHitItemLastFrame)
 				{
@@ -525,10 +554,66 @@ void AShooterCharacter::TraceForItems()
 			// Store a reference to HitItem for next frame
 			TraceHitItemLastFrame = HitItem;
 		}
-		else if (TraceHitItemLastFrame)
+		else if (TraceHitItemLastFrame != nullptr)
 		{
 			TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+			TraceHitItemLastFrame = nullptr;
 		}
 	}
+	/*else if (TraceHitItemLastFrame)
+	{
+		TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+		TraceHitItemLastFrame = nullptr;
+	}*/
 	
 }
+
+AWeapon* AShooterCharacter::SpawnDefaultWeapon()
+{
+	// Check tsubclassof
+	if (WeaponClass)
+	{
+		
+		// Spawn and return it
+		return GetWorld()->SpawnActor<AWeapon>(WeaponClass);
+	}
+	return nullptr;
+}
+
+void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
+{
+	if (WeaponToEquip)
+	{
+		const USkeletalMeshSocket* WeaponSocket = GetMesh()->GetSocketByName(FName("weapon_r"));
+		if (WeaponSocket)
+		{
+			//WeaponToEquip->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("weapon_r"));
+			WeaponSocket->AttachActor(WeaponToEquip, GetMesh());
+			WeaponToEquip->SetOwner(this);
+			
+			EquippedWeapon = WeaponToEquip;
+			EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
+
+		}
+	}
+}
+
+void AShooterCharacter::DropWeapon()
+{
+	if (EquippedWeapon != nullptr)
+	{
+		FDetachmentTransformRules DetachmentTransformRules(EDetachmentRule::KeepWorld, true);
+		EquippedWeapon->GetItemMesh()->DetachFromComponent(DetachmentTransformRules);
+
+		EquippedWeapon->SetItemState(EItemState::EIS_Falling);
+		EquippedWeapon->ThrowWeapon();
+
+	}
+}
+
+void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
+{
+	DropWeapon();
+	EquipWeapon(WeaponToSwap);
+}
+

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/WidgetComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/SphereComponent.h"
 #include "Item.generated.h"
 
 UENUM(BlueprintType)
@@ -13,7 +15,9 @@ enum class EItemType: uint8
 	EIT_Default UMETA(DisplayName = "Default"),
 	EIT_Weapon UMETA(DisplayName = "Weapon"),
 	EIT_Ammo UMETA(DisplayName = "Ammo"),
-	EIT_Money UMETA(DisplayName = "Money")
+	EIT_Money UMETA(DisplayName = "Money"),
+
+	EIT_MAX UMETA(DisplayName = "Default MAX")
 };
 UENUM(BlueprintType)
 enum class EItemRarity : uint8
@@ -25,6 +29,17 @@ enum class EItemRarity : uint8
 	EIR_Mythical UMETA(DisplayName = "Mythical"),
 
 	EIR_MAX UMETA(DisplayName = "Default MAX")
+};
+UENUM(BlueprintType)
+enum class EItemState : uint8
+{
+	EIS_Equipped UMETA(DisplayName = "Equipped"),
+	EIS_NotEquipped UMETA(DisplayName = "NotEquipped"),
+	EIS_EquipInterping UMETA(DisplayName = "EquipInterping"),
+	EIS_PickedUp UMETA(DisplayName = "PickedUp"),
+	EIS_Falling UMETA(DisplayName = "Falling"),
+
+	EIS_MAX UMETA(DisplayName = "Default MAX")
 };
 UCLASS()
 class FREEDOMARENA_API AItem : public AActor
@@ -62,10 +77,17 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
+	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
+	FORCEINLINE UBoxComponent* GetCollisionBox() const { return CollisionBox; }
+	FORCEINLINE EItemState GetItemState() const { return State; }
+	FORCEINLINE USkeletalMeshComponent* GetItemMesh() const { return ItemMesh; }
+
+	void SetItemState(EItemState itemState);
+
 private:
 
 	//Skeletal Mesh for Item
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* ItemMesh;
 
 	// Line trace collides with box to show HUD widgets
@@ -90,6 +112,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	TArray<bool> ActiveStars;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	EItemState State;
+	
 	// The name which appears on the PickupWidget
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	FString ItemName;
@@ -100,6 +125,9 @@ protected:
 
 	// Sets the ActiveStars array of bools based on rarity
 	void SetActiveStars();
+
+	// Set properties of the Item's components according to state
+	void SetItemProperties(EItemState itemState);
 public:
 
 };

@@ -160,25 +160,37 @@ protected:
 	float ShootingDelay;
 
 	// Sets timer between shots
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	FTimerHandle ShootingTimerHandle;
 
 	// True if we should trace every frame for items
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Trace, meta = (AllowPrivateAccess = "true"))
 	bool bShouldTraceForItems;
 	
 	// Number of overlapped AItems
 	int8 OverlappedItemCount;
 
 	// The AItem that trace hit last frame
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Trace, meta = (AllowPrivateAccess = "true"))
 	class AItem* TraceHitItemLastFrame;
 
 	// Range that player can see AItem
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
 	float ItemTraceHitRange;
 
 	// Range that player can see AItem
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Items, meta = (AllowPrivateAccess = "true"))
 	float GunTraceHitRange;
+
+	// Currently equipped weapon
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	class AWeapon* EquippedWeapon;
+
+	// Set this in BP for weapon class
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	TSubclassOf<AWeapon> WeaponClass;
+
+	
 
 	// Input mapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
@@ -219,6 +231,14 @@ protected:
 	// Handle aim input to set aiming
 	UFUNCTION()
 	void AimingInputHandler(const FInputActionValue& value);
+
+	// Handle pickup an item input
+	UFUNCTION()
+	void PickupItemInputHandler(const FInputActionValue& value);
+
+	// Handle drop an weapon input
+	UFUNCTION()
+	void DropItemInputHandler(const FInputActionValue& value);
 	/* ---------------------------------------------- */
 
 	// Getting the beam end point
@@ -260,4 +280,20 @@ protected:
 	// Trace for items if bShouldTraceForItems is true which means OverlappedItemCount > 0
 	UFUNCTION()
 	void TraceForItems();
+
+	// Spawns a weapon
+	UFUNCTION()
+	AWeapon* SpawnDefaultWeapon();
+
+	// Takes a weapon, attaches it to mesh and equips it
+	UFUNCTION()
+	void EquipWeapon(AWeapon* WeaponToEquip);
+
+	// Detach weapon and let it fall to the ground
+	UFUNCTION()
+	void DropWeapon();
+
+	// Drops currently equipped weapon and equips weapon that trace hit
+	UFUNCTION()
+	void SwapWeapon(AWeapon* WeaponToSwap);
 };

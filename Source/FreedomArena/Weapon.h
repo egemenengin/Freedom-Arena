@@ -20,4 +20,15 @@ protected:
 	virtual void BeginPlay() override;
 public:
 	virtual void Tick(float DeltaTime) override;
+	
+	// Adds an impulse to the weapon
+	void ThrowWeapon();
+protected:
+
+	void StopFalling();
+private:
+	FTimerHandle ThrowWeaponTimer;
+	float ThrowWeaponTime;
+	bool bFalling;
+	float ThrowPower;
 };
