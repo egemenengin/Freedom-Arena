@@ -26,6 +26,9 @@ AShooterCharacter::AShooterCharacter() :
 	CameraZoomedFOV(40.f),
 	CameraCurrentFOV(0.f),
 	ZoomInterpSpeed(20.f),
+	// Item Interp Variables
+	ItemInterpOutwardDistance(200.f),
+	ItemInterpUpDistance(50.f),
 	// Turn rates for aiming or not 
 	AimingTurnRate(20.f),
 	HipTurnRate(90.f),
@@ -49,6 +52,7 @@ AShooterCharacter::AShooterCharacter() :
 	GunTraceHitRange(10'000.f),
 	// Item trace variables
 	bShouldTraceForItems(false)
+
 	
 {
 	
@@ -334,8 +338,10 @@ void AShooterCharacter::PickupItemInputHandler(const FInputActionValue& value)
 		// TODO pickup item
 		if (TraceHitItemLastFrame)
 		{
-			AWeapon* traceHitWeapon = Cast<AWeapon>(TraceHitItemLastFrame);
-			SwapWeapon(traceHitWeapon);
+			/*AWeapon* traceHitWeapon = Cast<AWeapon>(TraceHitItemLastFrame);
+			SwapWeapon(traceHitWeapon);*/
+			//GetPickupItem(TraceHitItemLastFrame);
+			TraceHitItemLastFrame->StartItemCurve(this);
 		}
 	}
 }
@@ -490,6 +496,8 @@ void AShooterCharacter::IncrementOverlappedItemCount(int8 Amount)
 	}
 }
 
+
+
 bool AShooterCharacter::TraceUnderCrosshair(FHitResult& OutHitResult, const float TraceRange)
 {
 	// Get viewport size
@@ -560,11 +568,11 @@ void AShooterCharacter::TraceForItems()
 			TraceHitItemLastFrame = nullptr;
 		}
 	}
-	/*else if (TraceHitItemLastFrame)
+	else if (TraceHitItemLastFrame != nullptr)
 	{
 		TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
 		TraceHitItemLastFrame = nullptr;
-	}*/
+	}
 	
 }
 
@@ -578,6 +586,18 @@ AWeapon* AShooterCharacter::SpawnDefaultWeapon()
 		return GetWorld()->SpawnActor<AWeapon>(WeaponClass);
 	}
 	return nullptr;
+}
+
+void AShooterCharacter::GetPickupItem(AItem* item)
+{
+	if (item->GetItemType() == EItemType::EIT_Weapon)
+	{
+		AWeapon* weapon = Cast<AWeapon>(item);
+		if (weapon)
+		{
+			SwapWeapon(weapon);
+		}
+	}
 }
 
 void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
@@ -617,3 +637,11 @@ void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
 	EquipWeapon(WeaponToSwap);
 }
 
+FVector AShooterCharacter::GetCameraInterpLocation()
+{
+	const FVector CameraWorldLocation = FollowCam->GetComponentLocation();
+	const FVector CameraForwardDistance = FollowCam->GetForwardVector() * ItemInterpOutwardDistance;
+	const FVector CameraUpDistance = FollowCam->GetUpVector() * ItemInterpUpDistance;
+	// const FVector CameraUpDistance = FVector(0.f, 0.f, ItemInterpUpDistance);
+	return CameraWorldLocation + CameraForwardDistance + CameraUpDistance;
+}

@@ -39,44 +39,52 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCam;
 
-	// Randomized gunshot sound cue
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
-	class USoundCue* FireSound;
-
 	// Is character aiming or not
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	bool bAiming;
 
 	// Default camera field of view value
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float CameraDefaultFOV;
 
 	// Zoomed camera field of view value
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float CameraZoomedFOV;
 
 	// Current camera field of view value for frame
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float CameraCurrentFOV;
 
 	// Camera Zooming Interpolation Speed
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float ZoomInterpSpeed;
 
+	// Distance outward from the camera to item for interpolation
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Effects, meta = (AllowPrivateAccess = "true"))
+	float ItemInterpOutwardDistance;
+
+	// Distance Upward from the camera to item for interpolation
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Effects, meta = (AllowPrivateAccess = "true"))
+	float ItemInterpUpDistance;
+
+	// Randomized gunshot sound cue
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
+	class USoundCue* FireSound;
+
 	// Muzzle flash when shot at Muzzle Socket
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	class UParticleSystem* MuzzleFlash;
 
 	// Montage for firing weapon
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	class UAnimMontage* HipFireMontage;
 
 	// Particles spawned when bullet hit
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* ImpactParticles;
 	
 	// Smoke trail for bullets
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* BeamParticles;
 
 	
@@ -94,6 +102,8 @@ public:
 
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
 	void IncrementOverlappedItemCount(int8 Amount);
+
+	FVector GetCameraInterpLocation();
 protected:
 
 	// Movement Speed 
@@ -296,4 +306,8 @@ protected:
 	// Drops currently equipped weapon and equips weapon that trace hit
 	UFUNCTION()
 	void SwapWeapon(AWeapon* WeaponToSwap);
+public:
+	UFUNCTION()
+		void GetPickupItem(AItem* item);
+
 };
