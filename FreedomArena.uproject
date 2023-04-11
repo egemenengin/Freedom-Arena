@@ -9,7 +9,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Engine"
+				"Engine",
+				"UnrealEd"
 			]
 		}
 	],
@@ -30,5 +31,4 @@
 		"Windows",
 		"HoloLens"
 	]
-	
 }
