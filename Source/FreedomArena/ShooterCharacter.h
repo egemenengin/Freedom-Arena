@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "WeaponEnums.h"
 #include "ShooterCharacter.generated.h"
 
 UCLASS()
@@ -78,6 +79,10 @@ private:
 	// Montage for firing weapon
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	class UAnimMontage* HipFireMontage;
+
+	// Montage for reloading
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	class UAnimMontage* ReloadMontage;
 
 	// Particles spawned when bullet hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
@@ -159,11 +164,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
 	FTimerHandle CrosshairShootTimer;
-
-
-	// True when we can fire. False when waiting for shooting delay
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
-	bool bCanShoot;
 	
 	// Delay between shots
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
@@ -172,6 +172,10 @@ protected:
 	// Sets timer between shots
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	FTimerHandle ShootingTimerHandle;
+
+	// Sets timer for reloading
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	FTimerHandle ReloadingTimerHandle;
 
 	// True if we should trace every frame for items
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Trace, meta = (AllowPrivateAccess = "true"))
@@ -196,12 +200,32 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
 	class AWeapon* EquippedWeapon;
 
+
 	// Set this in BP for weapon class
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
 	TSubclassOf<AWeapon> WeaponClass;
 
-	
+	// Mapping Ammo types and number of them
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	TMap<EAmmoType, int32> AmmoMap;
 
+	// Starting amount of Light ammo
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	int32 StartingLightAmmo;
+
+	// Starting amount of Heavy ammo
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	int32 StartingHeavyAmmo;
+
+
+	// Transform of the clip when magazine is grabbed first time during reloading
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	FTransform MagazineTransform;
+
+	// Scene component to attach to the character's hand during reloading
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
+	USceneComponent* HandSceneComponent;
+	
 	// Input mapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UInputMappingContext* InputMapping;
@@ -250,7 +274,13 @@ protected:
 	UFUNCTION()
 	void DropItemInputHandler(const FInputActionValue& value);
 	/* ---------------------------------------------- */
-
+	//Fire Weapon Funcitons
+	UFUNCTION()
+	void PlayFireSound();
+	UFUNCTION()
+	void SendBullet();
+	UFUNCTION()
+	void PlayHipFireMontage();
 	// Getting the beam end point
 	UFUNCTION()
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation);
@@ -283,6 +313,21 @@ protected:
 	UFUNCTION()
 	void SetCanShoot();
 
+	// Set combat state after reloading
+	UFUNCTION()
+	void ReloadFinished();
+
+	// Call from Animation blueprint with grab mag notify
+	UFUNCTION(BlueprintCallable)
+	void GrabMag();
+
+	// Call from Animation blueprint with replace mag notify
+	UFUNCTION(BlueprintCallable)
+	void ReplaceMag();
+	// Set reload montage section according to equipped weapon type 
+	UFUNCTION()
+	void SetReloadMontageSection(FName& MontageSection);
+
 	// Line trace for items under the crosshair
 	UFUNCTION()
 	bool TraceUnderCrosshair(FHitResult& OutHitResult, const float TraceRange);
@@ -306,8 +351,10 @@ protected:
 	// Drops currently equipped weapon and equips weapon that trace hit
 	UFUNCTION()
 	void SwapWeapon(AWeapon* WeaponToSwap);
+
 public:
 	UFUNCTION()
-		void GetPickupItem(AItem* item);
+	void GetPickupItem(AItem* item);
+
 
 };

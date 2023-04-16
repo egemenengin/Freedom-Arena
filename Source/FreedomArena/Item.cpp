@@ -6,7 +6,8 @@
 #include "Components/SphereComponent.h"
 #include "ShooterCharacter.h"
 #include "Camera/CameraComponent.h"
-
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
 // Sets default values
 AItem::AItem() :
 	Type(EItemType::EIT_Default),
@@ -187,6 +188,10 @@ void AItem::SetItemProperties(EItemState itemState)
 			// Set Collision box properties
 			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			// Play Pickup sound
+			UGameplayStatics::PlaySound2D(this, EquipSound);
+
 			break;
 
 		case EItemState::EIS_EquipInterping:
@@ -204,10 +209,18 @@ void AItem::SetItemProperties(EItemState itemState)
 			// Set Collision box properties
 			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			
+			// TODO Delete
+			// Play Pickup sound
+			UGameplayStatics::PlaySound2D(this, PickUpSound);
+
 			break;
 
 		case EItemState::EIS_PickedUp:
 
+			// Play Pickup sound
+			UGameplayStatics::PlaySound2D(this, PickUpSound);
+			
 			break;
 
 		case EItemState::EIS_Falling:
@@ -307,7 +320,7 @@ void AItem::FinishInterping()
 	bInterping = false;
 	// Set Scale back gro normal
 	SetActorScale3D(FVector(1.f));
-
+	SetItemState(EItemState::EIS_PickedUp);
 }
 
 

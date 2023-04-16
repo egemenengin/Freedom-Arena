@@ -82,6 +82,9 @@ public:
 	FORCEINLINE EItemState GetItemState() const { return State; }
 	FORCEINLINE USkeletalMeshComponent* GetItemMesh() const { return ItemMesh; }
 	FORCEINLINE EItemType GetItemType() const { return Type; }
+	FORCEINLINE USoundCue* GetPickupSound() const { return PickUpSound; }
+	FORCEINLINE USoundCue* GetEquipSound() const { return EquipSound; }
+
 	void SetItemState(EItemState itemState);
 
 private:
@@ -160,6 +163,14 @@ protected:
 	// Curve that is used to scaling an item while interping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	UCurveFloat* ItemScaleCurve;
+	
+	// Sound played when the Item is picked up
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	class USoundCue* PickUpSound;
+	
+	// Sound played when the Item is equipped
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	USoundCue* EquipSound;
 	
 	// Sets the ActiveStars array of bools based on rarity
 	UFUNCTION()
