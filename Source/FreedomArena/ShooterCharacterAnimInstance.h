@@ -9,12 +9,23 @@
 /**
  * 
  */
+UENUM(BlueprintType)
+enum class EOffsetState : uint8
+{
+	EOS_Aiming UMETA(DisplayName = "Aiming"),
+	EOS_Hip UMETA(DisplayName = "Hip"),
+	EOS_Reloading UMETA(DisplayName = "Reloading"),
+	EOS_InAir UMETA(DisplayName = "InAir"),
+
+	EOS_MAX UMETA(DisplayName = "DefaultMAX")
+};
 UCLASS()
 class FREEDOMARENA_API UShooterCharacterAnimInstance : public UAnimInstance
 {
 	GENERATED_BODY()
 
 public:
+	UShooterCharacterAnimInstance();
 
 	virtual void NativeInitializeAnimation() override;
 
@@ -22,6 +33,14 @@ public:
 	void UpdateAnimationProperties(float DeltaTime);
 
 	FORCEINLINE bool GetAiming() const { return bAiming; }
+
+protected:
+	// Handle turning in place variables
+	UFUNCTION()
+	void TurnInPlace();
+
+	UFUNCTION()
+	void SetOffsetState();
 
 private:
 
@@ -50,4 +69,35 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	bool bAiming;
+
+	// Yaw of the Character this frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float CharacterYaw;
+
+	// Yaw of the Character previous frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float CharacterYawLastFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float RootYawOffset;
+
+	// The pitch of the aim rotation, used for aim offset.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float Pitch;
+
+	// True when reloading, used to prevent aim offset while reloading
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	bool bReloading;
+
+	// OffsetState used to determine which aim offset to use
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	EOffsetState OffsetState;
+
+	// Rotation curve value this frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float RotationCurve;
+
+	// Rotation curve value last frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
+	float RotationCurveLastFrame;
 };

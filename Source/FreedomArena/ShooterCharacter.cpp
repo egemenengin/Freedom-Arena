@@ -586,6 +586,11 @@ float AShooterCharacter::GetCrosshairSpreadMultiplier() const
 	return CrosshairSpreadMultiplier;
 }
 
+AWeapon* AShooterCharacter::GetEquippedWeapon()
+{
+	return EquippedWeapon;
+}
+
 void AShooterCharacter::IncrementOverlappedItemCount(int8 Amount)
 {
 	OverlappedItemCount += Amount;

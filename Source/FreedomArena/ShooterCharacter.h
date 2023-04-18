@@ -105,6 +105,8 @@ public:
 
 	FORCEINLINE int8 GetOverlappedItemCount() const { return OverlappedItemCount; }
 
+	AWeapon* GetEquippedWeapon();
+
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
 	void IncrementOverlappedItemCount(int8 Amount);
 
