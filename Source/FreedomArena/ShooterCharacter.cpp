@@ -6,7 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
-
+#include "Components/CapsuleComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "ShooterCharacterInputConfigData.h"
@@ -20,8 +20,18 @@
 
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
+	MovementSpeed(100.f),
+	WalkSpeed(600.f),
+	CrouchSpeed(300.f),
+	BaseGroundFriction(2.f),
+	CrouchingGroundFriction(25.f),
 	bAiming(false),
+	bAimingButtonPressed(false),
 	TurnRate(0.f),
+	bCrouching(false),
+	CurrentCapsuleHalfHeight(88.f),
+	StandingCapsuleHalfHeight(88.f),
+	CrouchingCapsuleHalfHeight(44.f),
 	// Camera field of view values
 	CameraDefaultFOV(0.f), // set in BeginPlay
 	CameraZoomedFOV(40.f),
@@ -68,7 +78,7 @@ AShooterCharacter::AShooterCharacter() :
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 200.f; // The camera follows at this distance behind the character
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-	CameraBoom->SocketOffset = FVector(0.f, 50.f, 70.f);
+	CameraBoom->SocketOffset = FVector(0.f, 40.f, 70.f);
 
 	// Create and setup FollowCam
 	FollowCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -104,6 +114,21 @@ void AShooterCharacter::BeginPlay()
 	AmmoMap.Add(EAmmoType::EAT_Light, StartingLightAmmo);
 	AmmoMap.Add(EAmmoType::EAT_Heavy, StartingHeavyAmmo);
 	AmmoMap.Add(EAmmoType::EAT_None, 0);
+
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+}
+
+void AShooterCharacter::Jump()
+{
+	if (bCrouching)
+	{
+		bCrouching = false;
+		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	}
+	else
+	{
+		ACharacter::Jump();
+	}
 }
 
 // Called every frame
@@ -123,6 +148,8 @@ void AShooterCharacter::Tick(float DeltaTime)
 	// Check bShouldTraceForItems which means checking OverlappedItemCount and then trace for items 
 	TraceForItems();
 	
+	//Interpolate the capsule half height based on crouching/standing
+	InterpCapsuleHalfHeight(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -214,7 +241,20 @@ void AShooterCharacter::JumpInputHandler(const FInputActionValue& value)
 
 void AShooterCharacter::CrouchInputHandler(const FInputActionValue& value)
 {
-
+	if ( (value.Get<float>() > 0) && (!GetCharacterMovement()->IsFalling()) )
+	{
+		bCrouching = !bCrouching;
+	}
+	if (bCrouching)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = CrouchSpeed;
+		GetCharacterMovement()->GroundFriction = CrouchingGroundFriction;
+	}
+	else
+	{
+		GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+		GetCharacterMovement()->GroundFriction = BaseGroundFriction;
+	}
 }
 
 void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
@@ -290,12 +330,16 @@ void AShooterCharacter::AimingInputHandler(const FInputActionValue& value)
 {
 	if (value.Get<float>() > 0.f)
 	{
-		bAiming = true;
+
+		bAimingButtonPressed = true;
+		
 	}
 	else
 	{
-		bAiming = false;
+		bAimingButtonPressed = false;
 	}
+	SetAiming(bAimingButtonPressed);
+
 
 }
 
@@ -394,6 +438,11 @@ void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
 			bool bReloadSuccess = EquippedWeapon->ReloadWeapon(AmmoMap);
 			if (bReloadSuccess)
 			{
+				if (bAiming)
+				{
+					SetAiming(false);
+				}
+
 				EquippedWeapon->SetCombatState(ECombatState::ECS_Reloading);
 
 				FName MontageSection = TEXT("Reload");
@@ -545,6 +594,30 @@ void AShooterCharacter::SetCanShoot()
 		}
 	}
 }
+void AShooterCharacter::InterpCapsuleHalfHeight(float DeltaTime)
+{
+	float TargetCapsuleHalfHeight;
+	if (bCrouching)
+	{
+		TargetCapsuleHalfHeight = CrouchingCapsuleHalfHeight;
+	}
+	else
+	{
+		TargetCapsuleHalfHeight = StandingCapsuleHalfHeight;
+	}
+
+	const float InterpHalfHeight = FMath::FInterpTo(GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), TargetCapsuleHalfHeight, DeltaTime, 20.f);
+	
+	// Negative value if crouching; Positive vaue if standing
+	const float DeltaCapsuleHalfHeight = InterpHalfHeight - CurrentCapsuleHalfHeight;
+
+	const FVector MeshOffset = FVector(0.f, 0.f, -DeltaCapsuleHalfHeight);
+	GetMesh()->AddLocalOffset(MeshOffset);
+
+	GetCapsuleComponent()->SetCapsuleHalfHeight(InterpHalfHeight);
+	CurrentCapsuleHalfHeight = InterpHalfHeight;
+}
+
 void AShooterCharacter::ReloadFinished()
 {
 	if (EquippedWeapon != nullptr)
@@ -558,6 +631,9 @@ void AShooterCharacter::ReloadFinished()
 			EquippedWeapon->SetCombatState(ECombatState::ECS_OutOfAmmo);
 		}
 	}
+
+	SetAiming(bAimingButtonPressed);
+
 }
 
 void AShooterCharacter::GrabMag()
@@ -725,6 +801,28 @@ void AShooterCharacter::GetPickupItem(AItem* item)
 		}
 	}
 }
+
+void AShooterCharacter::SetAiming(bool AimingButtonPressed)
+{
+	if (AimingButtonPressed)
+	{
+		if (EquippedWeapon && EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading)
+		{
+			bAiming = true;
+			GetCharacterMovement()->MaxWalkSpeed = CrouchSpeed;
+		}
+		
+	}
+	else
+	{
+		bAiming = false;
+		if (!bCrouching)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+		}
+	}
+}
+
 
 void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
 {

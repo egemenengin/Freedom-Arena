@@ -13,14 +13,17 @@ UShooterCharacterAnimInstance::UShooterCharacterAnimInstance() :
 	MovementOffsetYaw(0.f),
 	LastMovementOffsetYaw(0.f),
 	bAiming(false),
-	CharacterYaw(0.f),
-	CharacterYawLastFrame(0.f),
+	TIPCharacterYaw(0.f),
+	TIPCharacterYawLastFrame(0.f),
 	RootYawOffset(0.f),
 	RotationCurve(0.f),
 	RotationCurveLastFrame(0.f),
 	Pitch(0.f),
 	bReloading(false),
-	OffsetState(EOffsetState::EOS_Hip)
+	OffsetState(EOffsetState::EOS_Hip),
+	CharacterRotation(FRotator(0.f)),
+	CharacterRotationLastFrame(FRotator(0.f)),
+	RecoilWeight(1.f)
 {
 }
 
@@ -66,23 +69,15 @@ void UShooterCharacterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 		{
 			LastMovementOffsetYaw = MovementOffsetYaw;
 		}
-		/* TODO DELETE
-		FString RotationMessage = FString::Printf(TEXT("BASE AIM ROTATION: %f"), AimRotation.Yaw);
-		FString MovementMessage = FString::Printf(TEXT("BASE Movement ROTATION: %f"), MovementRotation.Yaw);
-		FString MovementMessage2 = FString::Printf(TEXT("BASE Movement OFFSET: %f"), MovementOffsetYaw);
-		if (GEngine != nullptr)
-		{
-			//GEngine->AddOnScreenDebugMessage(1, 0, FColor::White, RotationMessage);
-			//GEngine->AddOnScreenDebugMessage(1, 0, FColor::White, MovementMessage);
-			//GEngine->AddOnScreenDebugMessage(1, 0, FColor::White, MovementMessage2);
-		}
-		*/
 
 		bAiming = ShooterCharacter->GetIsAiming();
 		SetOffsetState();
+
+		bCrouching = ShooterCharacter->GetIsCrouching();
 		
 	}
 	TurnInPlace();
+	Lean(DeltaTime);
 }
 
 void UShooterCharacterAnimInstance::TurnInPlace()
@@ -94,17 +89,18 @@ void UShooterCharacterAnimInstance::TurnInPlace()
 		// Dont turn in place while character is moving;
 		if (Speed <= 0 && !bIsInAir)
 		{
-			CharacterYawLastFrame = CharacterYaw;
-			CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-			const float YawDelta = CharacterYaw - CharacterYawLastFrame;
+			TIPCharacterYawLastFrame = TIPCharacterYaw;
+			TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+			const float TIPYawDelta = TIPCharacterYaw - TIPCharacterYawLastFrame;
 
 			// Root yaw offset, updated and clamped [-180, 180] 
-			RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - YawDelta);
+			RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - TIPYawDelta);
 
 			// 1.0 if turning, 0.0 if not
 			const float Turning = GetCurveValue(TEXT("Turning"));
 			if (Turning > 0)
 			{
+				bTurning = true;
 				RotationCurveLastFrame = RotationCurve;
 				RotationCurve = GetCurveValue(TEXT("Rotation"));
 				const float DeltaRotation = RotationCurve - RotationCurveLastFrame;
@@ -126,30 +122,64 @@ void UShooterCharacterAnimInstance::TurnInPlace()
 					const float YawAxes = ABSRootYawOffset - 90.f;
 					RootYawOffset > 0 ? RootYawOffset -= YawAxes : RootYawOffset += YawAxes;
 				}
-			}
+
+				
 			
+			}
+			else // not turning in place
+			{
+				bTurning = false;
+				
+					
+			}
+			/* TODO DELETE
 			if (GEngine)
 			{
-				GEngine->AddOnScreenDebugMessage(1, -1, FColor::Blue, FString::Printf(TEXT("CharacterYawLastFrame: %f"), CharacterYawLastFrame));
-				GEngine->AddOnScreenDebugMessage(2, -1, FColor::Red, FString::Printf(TEXT("Character Yaw: %f"), CharacterYaw));
-				GEngine->AddOnScreenDebugMessage(3, -1, FColor::Green, FString::Printf(TEXT("DELTA: %f"), YawDelta));
+				GEngine->AddOnScreenDebugMessage(1, -1, FColor::Blue, FString::Printf(TEXT("CharacterYawLastFrame: %f"), TIPCharacterYawLastFrame));
+				GEngine->AddOnScreenDebugMessage(2, -1, FColor::Red, FString::Printf(TEXT("Character Yaw: %f"), TIPCharacterYaw));
+				GEngine->AddOnScreenDebugMessage(3, -1, FColor::Green, FString::Printf(TEXT("DELTA: %f"), TIPCharacterYaw));
 				GEngine->AddOnScreenDebugMessage(4, -1, FColor::Purple, FString::Printf(TEXT("RootYawOffset: %f"), RootYawOffset));
-			}
+			}*/
 			
 		}
 		else
 		{
 			RootYawOffset = 0.f;
-			CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-			RotationCurveLastFrame = CharacterYaw;
+			TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+			RotationCurveLastFrame = TIPCharacterYaw;
 			RotationCurveLastFrame = 0.f;
 			RotationCurve = 0.f;
 		}
-		if (GEngine)
+		// Set recoil weight
+		if (bTurning)
 		{
-			GEngine->AddOnScreenDebugMessage(1, -1, FColor::Blue, FString::Printf(TEXT("CharacterYawLastFrame: %f"), CharacterYawLastFrame));
-			GEngine->AddOnScreenDebugMessage(2, -1, FColor::Red, FString::Printf(TEXT("Character Yaw: %f"), CharacterYaw));
-			GEngine->AddOnScreenDebugMessage(4, -1, FColor::Purple, FString::Printf(TEXT("RootYawOffset: %f"), RootYawOffset));
+			
+			if (bReloading)
+			{
+				RecoilWeight = 1.f;
+			}
+			else
+			{
+				RecoilWeight = 0.f;
+			}
+		}
+		else
+		{
+			if (bCrouching)
+			{
+				if (bReloading)
+				{
+					RecoilWeight = 1.f;
+				}
+				else
+				{
+					RecoilWeight = 0.1f;
+				}
+			}
+			else
+			{
+				RecoilWeight = 1.f;
+			}
 		}
 	}
 }
@@ -177,4 +207,20 @@ void UShooterCharacterAnimInstance::SetOffsetState()
 	{
 		OffsetState = EOffsetState::EOS_Hip;
 	}
+}
+
+void UShooterCharacterAnimInstance::Lean(float DeltaTime)
+{
+	if (ShooterCharacter != nullptr)
+	{
+		CharacterRotationLastFrame = CharacterRotation;
+		CharacterRotation = ShooterCharacter->GetActorRotation();
+		FRotator RotationDelta = UKismetMathLibrary::NormalizedDeltaRotator(CharacterRotation, CharacterRotationLastFrame);
+
+
+		const float Target = RotationDelta.Yaw / DeltaTime;
+		const float Interp = FMath::FInterpTo(YawDelta, Target, DeltaTime, 1.f);
+		YawDelta = FMath::Clamp(Interp, -90.f, 90.f);
+	}
+	
 }

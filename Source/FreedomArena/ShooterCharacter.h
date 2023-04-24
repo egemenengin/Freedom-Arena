@@ -20,6 +20,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void Jump() override;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -43,6 +45,10 @@ private:
 	// Is character aiming or not
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	bool bAiming;
+
+	// Is aiming button pressed
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	bool bAimingButtonPressed;
 
 	// Default camera field of view value
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -104,7 +110,7 @@ public:
 	FORCEINLINE bool GetIsAiming() const { return bAiming; }
 
 	FORCEINLINE int8 GetOverlappedItemCount() const { return OverlappedItemCount; }
-
+	FORCEINLINE bool GetIsCrouching() const { return bCrouching; }
 	AWeapon* GetEquippedWeapon();
 
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
@@ -115,7 +121,23 @@ protected:
 
 	// Movement Speed 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
-	float MovementSpeed = 100.f;
+	float MovementSpeed;
+
+	// Movement Speed 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float WalkSpeed;
+
+	// Crouch Movement Speed 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float CrouchSpeed;
+
+	// Ground Friction while not crouching
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float BaseGroundFriction;
+	
+	// Ground Friction while crouching
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float CrouchingGroundFriction;
 
 	// Scale factor for mouse turn sensivity while aiming
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"), meta = (ClampMin = "0.0"), meta = (ClampMax = "1.0"))
@@ -136,6 +158,22 @@ protected:
 	// Turn rate while not aiming
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
 	float HipTurnRate;
+
+	// True while crouching
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	bool bCrouching;
+	
+	// Current half height of the capsule
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float CurrentCapsuleHalfHeight;
+
+	// Half height of the capsule while not crouching
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float StandingCapsuleHalfHeight;
+
+	// Half height of the capsule while crouching
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAcces = "true"))
+	float CrouchingCapsuleHalfHeight;
 
 	// Determines the spread of the crosshair
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
@@ -295,6 +333,10 @@ protected:
 	UFUNCTION()
 	void SetTurnRate();
 
+	// Interps capsule half height while crouching/standing
+	UFUNCTION()
+	void InterpCapsuleHalfHeight(float DeltaTime);
+
 	// Setting Mouse Sensivity Scale Factor
 	UFUNCTION()
 	void SetMouseSensScale(FVector2D& LookValue);
@@ -353,6 +395,11 @@ protected:
 	// Drops currently equipped weapon and equips weapon that trace hit
 	UFUNCTION()
 	void SwapWeapon(AWeapon* WeaponToSwap);
+	
+	UFUNCTION()
+	void SetAiming(bool AimButonPressed);
+
+
 
 public:
 	UFUNCTION()

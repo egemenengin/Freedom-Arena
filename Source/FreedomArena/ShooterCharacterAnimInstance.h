@@ -42,6 +42,10 @@ protected:
 	UFUNCTION()
 	void SetOffsetState();
 
+	// Handle calculations for leaning while running
+	UFUNCTION()
+	void Lean(float DeltaTime);
+
 private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
@@ -70,13 +74,13 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	bool bAiming;
 
-	// Yaw of the Character this frame
+	// Yaw of the Character this frame but only updated when the character stand still and not in air
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
-	float CharacterYaw;
+	float TIPCharacterYaw;
 
-	// Yaw of the Character previous frame
+	// Yaw of the Character previous frame but only updated when the character stand still and not in air
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
-	float CharacterYawLastFrame;
+	float TIPCharacterYawLastFrame;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
 	float RootYawOffset;
@@ -100,4 +104,28 @@ private:
 	// Rotation curve value last frame
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = "true"))
 	float RotationCurveLastFrame;
+
+	// Character Yaw This Frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lean", meta = (AllowPrivateAccess = "true"))
+	FRotator CharacterRotation;
+
+	// Character Yaw Last Frame
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lean", meta = (AllowPrivateAccess = "true"))
+	FRotator CharacterRotationLastFrame;
+
+	// Yaw delta used for leaning in the running blendspace
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lean", meta = (AllowPrivateAccess = "true"))
+	float YawDelta;
+
+	// True while turning
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lean", meta = (AllowPrivateAccess = "true"))
+	bool bTurning;
+	
+	// True while crouching
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crouching", meta = (AllowPrivateAccess = "true"))
+	bool bCrouching;
+
+	// Change recoil weight based on offset state
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	float RecoilWeight;
 };
