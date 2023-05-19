@@ -17,7 +17,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Weapon.h"
-
+#include "Ammo.h"
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
 	MovementSpeed(100.f),
@@ -64,7 +64,10 @@ AShooterCharacter::AShooterCharacter() :
 	bShouldTraceForItems(false),
 	// Ammo
 	StartingLightAmmo(90),
-	StartingHeavyAmmo(90)
+	StartingHeavyAmmo(90),
+	bShouldPlayPickupSound(true),
+	bShouldPlayEquipSound(true),
+	SoundResetTime(1.f)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -93,6 +96,27 @@ AShooterCharacter::AShooterCharacter() :
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f; // Measure of how much control the character can have while in the air
 
+	// Create Interpolation Components
+	WeaponInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Weapon Interpolation Component"));
+	WeaponInterpComp->SetupAttachment(FollowCam);
+
+	FirstInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("First Interpolation Component"));
+	FirstInterpComp->SetupAttachment(FollowCam);
+
+	SecondInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Second Interpolation Component"));
+	SecondInterpComp->SetupAttachment(FollowCam);
+
+	ThirdInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Third Interpolation Component"));
+	ThirdInterpComp->SetupAttachment(FollowCam);
+
+	FourthInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Fourth Interpolation Component"));
+	FourthInterpComp->SetupAttachment(FollowCam);
+
+	FifthInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Fifth Interpolation Component"));
+	FifthInterpComp->SetupAttachment(FollowCam);
+
+	SixthInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Sixth Interpolation Component"));
+	SixthInterpComp->SetupAttachment(FollowCam);
 }
 
 // Called when the game starts or when spawned
@@ -116,6 +140,9 @@ void AShooterCharacter::BeginPlay()
 	AmmoMap.Add(EAmmoType::EAT_None, 0);
 
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+
+	// Create FInterpLocation structs for each interp location. Add to array
+	InitializeInterpLocations();
 }
 
 void AShooterCharacter::Jump()
@@ -800,6 +827,15 @@ void AShooterCharacter::GetPickupItem(AItem* item)
 			SwapWeapon(weapon);
 		}
 	}
+	if (item->GetItemType() == EItemType::EIT_Ammo)
+	{
+		AAmmo* ammo = Cast<AAmmo>(item);
+		if (ammo)
+		{
+			TakeAmmo(ammo);
+		}
+	}
+	
 }
 
 void AShooterCharacter::SetAiming(bool AimingButtonPressed)
@@ -862,6 +898,7 @@ void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
 	EquipWeapon(WeaponToSwap);
 }
 
+/* No longer needed. AItem has GetInterpLocation
 FVector AShooterCharacter::GetCameraInterpLocation()
 {
 	const FVector CameraWorldLocation = FollowCam->GetComponentLocation();
@@ -870,3 +907,105 @@ FVector AShooterCharacter::GetCameraInterpLocation()
 	// const FVector CameraUpDistance = FVector(0.f, 0.f, ItemInterpUpDistance);
 	return CameraWorldLocation + CameraForwardDistance + CameraUpDistance;
 }
+*/
+void AShooterCharacter::TakeAmmo(class AAmmo* Ammo)
+{
+	//check to see if AmmoMap contains Ammo's ammo type
+	if (AmmoMap.Find(Ammo->GetAmmoType()))
+	{
+		AmmoMap[Ammo->GetAmmoType()] += Ammo->GetItemAmount();
+	}
+	else
+	{
+		AmmoMap.Add(Ammo->GetAmmoType(), Ammo->GetItemAmount());
+	}
+
+	//TODO can be add automatic reload if weapon is empty.
+
+	Ammo->Destroy();
+}
+void AShooterCharacter::InitializeInterpLocations()
+{
+	FInterpLocation WeaponLocation = FInterpLocation(WeaponInterpComp, 0);
+	InterpLocations.Add(WeaponLocation);
+
+	FInterpLocation interpLocation = FInterpLocation(FirstInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+	interpLocation = FInterpLocation(SecondInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+	interpLocation = FInterpLocation(ThirdInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+	interpLocation = FInterpLocation(FourthInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+	interpLocation = FInterpLocation(FifthInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+	interpLocation = FInterpLocation(SixthInterpComp, 0);
+	InterpLocations.Add(interpLocation);
+
+}
+int32 AShooterCharacter::GetInterpLocationIndex()
+{
+	int32 lowestIndex = 1;
+
+	int32 lowestCount = INT_MAX;
+
+	for (int32 i = 1; i < InterpLocations.Num(); i++)
+	{
+		if (InterpLocations[i].ItemCount < lowestCount)
+		{
+			lowestIndex = i;
+			lowestCount = InterpLocations[i].ItemCount;
+		}
+	}
+	return lowestIndex;
+}
+
+FInterpLocation AShooterCharacter::GetInterpLocation(int32 index)
+{
+	if (index < InterpLocations.Num())
+	{
+		return InterpLocations[index];
+	}
+	return FInterpLocation();
+}
+
+void AShooterCharacter::HandleInterpLocItemCount(int32 index, int32 itemAmount)
+{
+	if (itemAmount < -1 || itemAmount > 1) return;
+	if (InterpLocations.Num() > index)
+	{
+		InterpLocations[index].ItemCount += itemAmount;
+	}
+}
+
+void AShooterCharacter::StartSoundTimer(EItemState itemState)
+{
+	if (itemState == EItemState::EIS_PickedUp)
+	{ 
+		bShouldPlayPickupSound = false;
+		GetWorldTimerManager().SetTimer(PickupSoundTimer, this,  &AShooterCharacter::ResetPickupSoundTimer, SoundResetTime, false);
+	}
+	else if (itemState == EItemState::EIS_Equipped)
+	{
+		bShouldPlayEquipSound = false;
+		GetWorldTimerManager().SetTimer(EquipSoundTimer, this, &AShooterCharacter::ResetEquipSoundTimer, SoundResetTime, false);
+
+	}
+}
+void AShooterCharacter::ResetPickupSoundTimer()
+{
+		bShouldPlayPickupSound = true;
+}
+void AShooterCharacter::ResetEquipSoundTimer()
+{
+		bShouldPlayEquipSound = true;
+}
+
+
+
+

@@ -76,6 +76,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	//GETTERS 
 	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
 	FORCEINLINE UBoxComponent* GetCollisionBox() const { return CollisionBox; }
@@ -84,7 +85,7 @@ public:
 	FORCEINLINE EItemType GetItemType() const { return Type; }
 	FORCEINLINE USoundCue* GetPickupSound() const { return PickUpSound; }
 	FORCEINLINE USoundCue* GetEquipSound() const { return EquipSound; }
-
+	FORCEINLINE int64 GetItemAmount() const { return ItemAmount; }
 	void SetItemState(EItemState itemState);
 
 private:
@@ -105,6 +106,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	class USphereComponent* AreaSphere;
 
+	// Index of the interp location this item is interping to
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	int32 InterpLocationIndex;
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	EItemType Type;
@@ -178,7 +182,7 @@ protected:
 
 	// Set properties of the Item's components according to state
 	UFUNCTION()
-	void SetItemProperties(EItemState itemState);
+	virtual void SetItemProperties(EItemState itemState);
 
 	// Handle Item interpolation when in the EquipInterping State
 	UFUNCTION()
@@ -199,6 +203,10 @@ protected:
 	// Called when Item interp timer is finished
 	UFUNCTION()
 	void FinishInterping();
+
+	// Get interp location based on the item type
+	UFUNCTION()
+	FVector GetInterpLocation();
 
 public:
 	// Called from the AShooterCharacter class

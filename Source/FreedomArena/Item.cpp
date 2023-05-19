@@ -21,7 +21,8 @@ AItem::AItem() :
 	bInterping(false),
 	ZCurveTime(1.0f),
 	InterpSpeed(30.f),
-	InterpInitialYawOffset(0.f)
+	InterpInitialYawOffset(0.f),
+	InterpLocationIndex(0)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -189,8 +190,18 @@ void AItem::SetItemProperties(EItemState itemState)
 			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-			// Play Pickup sound
-			UGameplayStatics::PlaySound2D(this, EquipSound);
+			// Play EquipSound if there is no another EquipSound
+			if (Character)
+			{
+				if (Character->GetShouldPlayEquipSound())
+				{
+
+					UGameplayStatics::PlaySound2D(this, EquipSound);
+
+					Character->StartSoundTimer(itemState);
+				}
+			}
+
 
 			break;
 
@@ -209,18 +220,22 @@ void AItem::SetItemProperties(EItemState itemState)
 			// Set Collision box properties
 			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			
-			// TODO Delete
-			// Play Pickup sound
-			UGameplayStatics::PlaySound2D(this, PickUpSound);
+
 
 			break;
 
 		case EItemState::EIS_PickedUp:
+			// Play PickupSound if there is no another PickupSound
+			if (Character)
+			{
+				if (Character->GetShouldPlayPickupSound())
+				{
+					UGameplayStatics::PlaySound2D(this, PickUpSound);
 
-			// Play Pickup sound
-			UGameplayStatics::PlaySound2D(this, PickUpSound);
-			
+					Character->StartSoundTimer(itemState);
+				}
+			}
+
 			break;
 
 		case EItemState::EIS_Falling:
@@ -271,7 +286,7 @@ void AItem::CalculateInterpLocation(float ElapsedTime, float DeltaTime)
 	// Get Curve value corresponding to ElapsedTime
 	const float CurveValue = ItemZCurve->GetFloatValue(ElapsedTime);
 	FVector ItemLocation = ItemInterpStartLocation;
-	InterpTargetLocation = Character->GetCameraInterpLocation();
+	InterpTargetLocation = GetInterpLocation();
 	const FVector CurrentLocation = GetActorLocation();
 
 	// Interpolated X value
@@ -315,6 +330,9 @@ void AItem::FinishInterping()
 {
 	if (Character)
 	{
+		// Subtract 1 from the item count of the interp location struct
+		Character->HandleInterpLocItemCount(InterpLocationIndex, -1);
+
 		Character->GetPickupItem(this);
 	}
 	bInterping = false;
@@ -323,11 +341,39 @@ void AItem::FinishInterping()
 	SetItemState(EItemState::EIS_PickedUp);
 }
 
+FVector AItem::GetInterpLocation()
+{
+	if (Character != nullptr)
+	{
+		return Character->GetInterpLocation(InterpLocationIndex).SceneComponent->GetComponentLocation();
+	}
+	return FVector();
+}
+
 
 void AItem::StartItemCurve(AShooterCharacter* ShooterChar)
 {
 	// Store a handle to the character
 	Character = ShooterChar;
+	switch (Type)
+	{
+		case EItemType::EIT_Weapon:
+			InterpLocationIndex = 0;
+			break;
+		case EItemType::EIT_Ammo:
+			// Get array index in InterpLocations with the lowest Item Count
+			InterpLocationIndex = Character->GetInterpLocationIndex();
+			break;
+		case EItemType::EIT_Money:
+			// Get array index in InterpLocations with the lowest Item Count
+			InterpLocationIndex = Character->GetInterpLocationIndex();
+			break;
+		default:
+			break;
+	}
+
+	// Add 1 to the Item Count for this interp location struct
+	Character->HandleInterpLocItemCount(InterpLocationIndex, 1);
 
 	// Store initial location of the item
 	ItemInterpStartLocation = GetActorLocation();

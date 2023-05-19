@@ -7,6 +7,29 @@
 #include "WeaponEnums.h"
 #include "ShooterCharacter.generated.h"
 
+USTRUCT(BlueprintType)
+struct FInterpLocation
+{
+	GENERATED_BODY()
+	// Scene component to use for its location for interping
+	UPROPERTY(VisibleAnywhere,BlueprintReadOnly)
+	USceneComponent* SceneComponent;
+
+	// Number of items interping to/at this scene component location
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 ItemCount;
+
+	FInterpLocation()
+	{
+		ItemCount = 0;
+	}
+
+	FInterpLocation(USceneComponent* sceneComponent, int32 itemCount)
+	{
+		SceneComponent = sceneComponent;
+		ItemCount = itemCount;
+	}
+};
 UCLASS()
 class FREEDOMARENA_API AShooterCharacter : public ACharacter
 {
@@ -98,9 +121,43 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* BeamParticles;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* WeaponInterpComp;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* FirstInterpComp;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* SecondInterpComp;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* ThirdInterpComp;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* FourthInterpComp;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* FifthInterpComp;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* SixthInterpComp;
+
+	// Array of interp location structs
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	TArray<FInterpLocation> InterpLocations;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	FTimerHandle PickupSoundTimer;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	FTimerHandle EquipSoundTimer;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	bool bShouldPlayPickupSound;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	bool bShouldPlayEquipSound;
+
+	// Time to wait before another sound is played
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	float SoundResetTime;
+
 	
 public:
-
+	// GETTERS
 	//Returns the FollowCamera subobject
 	FORCEINLINE UCameraComponent* GetFollowCam() const { return FollowCam; };
 
@@ -111,12 +168,19 @@ public:
 
 	FORCEINLINE int8 GetOverlappedItemCount() const { return OverlappedItemCount; }
 	FORCEINLINE bool GetIsCrouching() const { return bCrouching; }
+
+	FORCEINLINE bool GetShouldPlayEquipSound() const { return bShouldPlayEquipSound; }
+	FORCEINLINE bool GetShouldPlayPickupSound() const { return bShouldPlayPickupSound; }
+	FORCEINLINE float GetSoundResetTime() const { return SoundResetTime; }
+
 	AWeapon* GetEquippedWeapon();
 
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
 	void IncrementOverlappedItemCount(int8 Amount);
 
-	FVector GetCameraInterpLocation();
+	// TODO DELETE No longer needed. AItem has GetInterpLocation
+	//FVector GetCameraInterpLocation();
+
 protected:
 
 	// Movement Speed 
@@ -399,11 +463,34 @@ protected:
 	UFUNCTION()
 	void SetAiming(bool AimButonPressed);
 
+	// Adding ammo to character's ammo amount according to its ammo type
+	UFUNCTION()
+	void TakeAmmo(class AAmmo* Ammo);
 
+	UFUNCTION()
+	void InitializeInterpLocations();
 
+	
 public:
 	UFUNCTION()
 	void GetPickupItem(AItem* item);
 
+	UFUNCTION()
+	FInterpLocation GetInterpLocation(int32 index);
 
+	// Returns the index in InterpLocations array with the lowest Item Count
+	UFUNCTION()
+	int32 GetInterpLocationIndex();
+
+	UFUNCTION()
+	void HandleInterpLocItemCount(int32 index, int32 itemAmount);
+
+	UFUNCTION()
+	void StartSoundTimer(EItemState itemState);
+
+	UFUNCTION()
+	void ResetPickupSoundTimer();
+
+	UFUNCTION()
+	void ResetEquipSoundTimer();
 };
