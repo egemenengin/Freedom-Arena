@@ -35,9 +35,6 @@ public:
 	UInputAction* InputRelaod;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
-	UInputAction* InputChangeWeapon;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
 	UInputAction* InputAiming;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
@@ -45,4 +42,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
 	UInputAction* InputDropItem;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
+	UInputAction* InventorySelection;
 };

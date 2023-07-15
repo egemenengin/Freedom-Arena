@@ -37,6 +37,8 @@ protected:
 			AActor* OtherActor,
 			UPrimitiveComponent* OtherComponent,
 			int32 OtherBodyIndex);
+
+
 private:
 
 	// Mesh for the ammo 
@@ -58,5 +60,7 @@ public:
 	// Getters
 	FORCEINLINE UStaticMeshComponent* GetAmmoMesh() const { return AmmoMesh; }
 	FORCEINLINE EAmmoType GetAmmoType() const { return AmmoType; }
+
+	virtual void ToggleCustomDepth(bool bValue) override;
 
 };

@@ -62,7 +62,7 @@ void AAmmo::SetItemProperties(EItemState NewState)
 
 			break;
 
-		case EItemState::EIS_EquipInterping:
+		case EItemState::EIS_PickupInterping:
 			// Set mesh properties
 			AmmoMesh->SetSimulatePhysics(false);
 			AmmoMesh->SetEnableGravity(false);
@@ -108,4 +108,10 @@ void AAmmo::OnAutoPickupSphereOverlap(UPrimitiveComponent* OverlappedComponent, 
 void AAmmo::EndAutoPickupSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex)
 {
 
+}
+
+void AAmmo::ToggleCustomDepth(bool bValue)
+{
+	Super::ToggleCustomDepth(bValue);
+	AmmoMesh->SetRenderCustomDepth(bValue);
 }

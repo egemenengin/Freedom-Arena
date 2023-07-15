@@ -67,7 +67,11 @@ AShooterCharacter::AShooterCharacter() :
 	StartingHeavyAmmo(90),
 	bShouldPlayPickupSound(true),
 	bShouldPlayEquipSound(true),
-	SoundResetTime(1.f)
+	SoundResetTime(1.f),
+	bChangingWeapon(false),
+	// Inventory
+	bInventoryFull(false),
+	HighlightedSlot(-1)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -133,7 +137,15 @@ void AShooterCharacter::BeginPlay()
 
 	// Hide the gun which is attached to skeleton
 	GetMesh()->HideBoneByName(TEXT("weapon"), EPhysBodyOp::PBO_None);
+
 	EquipWeapon(SpawnDefaultWeapon());
+	Inventory.Add(EquippedWeapon);
+	EquippedWeapon->SetWeaponSlotIndex(0);
+
+	EquippedWeapon->ToggleGlowMaterial(false);
+	EquippedWeapon->ToggleCustomDepth(false);
+
+	EquippedWeapon->SetCharacter(this);
 
 	AmmoMap.Add(EAmmoType::EAT_Light, StartingLightAmmo);
 	AmmoMap.Add(EAmmoType::EAT_Heavy, StartingHeavyAmmo);
@@ -211,6 +223,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	enhancedInputComponent->BindAction(InputActions->InputPickupItem, ETriggerEvent::Started, this, &AShooterCharacter::PickupItemInputHandler);
 	enhancedInputComponent->BindAction(InputActions->InputDropItem, ETriggerEvent::Started, this, &AShooterCharacter::DropItemInputHandler);
 
+	enhancedInputComponent->BindAction(InputActions->InventorySelection, ETriggerEvent::Started, this, &AShooterCharacter::InventorySelectInputHandler);
 }
 
 void AShooterCharacter::MoveInputHandler(const FInputActionValue& value)
@@ -375,12 +388,17 @@ void AShooterCharacter::PickupItemInputHandler(const FInputActionValue& value)
 	if (value.Get<float>() > 0)
 	{
 		// TODO pickup item
-		if (TraceHitItemLastFrame)
+		if ( (TraceHitItemLastFrame != nullptr) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+			(!bChangingWeapon) )
 		{
 			/*AWeapon* traceHitWeapon = Cast<AWeapon>(TraceHitItemLastFrame);
 			SwapWeapon(traceHitWeapon);*/
 			//GetPickupItem(TraceHitItemLastFrame);
 			TraceHitItemLastFrame->StartItemCurve(this);
+			TraceHitItemLastFrame = nullptr;
+
 		}
 	}
 }
@@ -391,6 +409,37 @@ void AShooterCharacter::DropItemInputHandler(const FInputActionValue& value)
 	{
 		DropWeapon();
 	}
+}
+
+void AShooterCharacter::InventorySelectInputHandler(const FInputActionValue& value)
+{
+	int32 newWeaponIndex = -1;
+
+	if (value.Get<FVector>().X < 0)
+	{
+		newWeaponIndex = 0;
+	}
+	else if (value.Get<FVector>().X == 1)
+	{
+		newWeaponIndex = 1;
+	}
+	else if (value.Get<FVector>().X == 2)
+	{
+		newWeaponIndex = 2;
+	}
+	else if (value.Get<FVector>().X == 3)
+	{
+		newWeaponIndex = 3;
+	}
+	else if (value.Get<FVector>().X == 4)
+	{
+		newWeaponIndex = 4;
+	}
+	else if (value.Get<FVector>().X == 5)
+	{
+		newWeaponIndex = 5;
+	}
+	ChangeEquippedWeapon(EquippedWeapon->GetWeaponSlotIndex(), newWeaponIndex);
 }
 
 void AShooterCharacter::PlayFireSound()
@@ -460,7 +509,10 @@ void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
 {
 	if (value.Get<float>() > 0)
 	{
-		if (EquippedWeapon != nullptr && EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading)
+		if ( (EquippedWeapon != nullptr) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+			(!bChangingWeapon) )
 		{
 			bool bReloadSuccess = EquippedWeapon->ReloadWeapon(AmmoMap);
 			if (bReloadSuccess)
@@ -495,10 +547,7 @@ void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
 	}
 }
 
-void AShooterCharacter::ChangeWeaponInputHandler(const FInputActionValue& value)
-{
 
-}
 
 
 void AShooterCharacter::SetCameraFOV(float DeltaTime)
@@ -609,7 +658,10 @@ void AShooterCharacter::FinishCrosshairShooting()
 
 void AShooterCharacter::SetCanShoot()
 {
-	if (EquippedWeapon != nullptr && EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading)
+	if ( (EquippedWeapon != nullptr) &&
+		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+		(!bChangingWeapon) )
 	{
 		if (EquippedWeapon->GetAmmo() > 0)
 		{
@@ -719,7 +771,10 @@ void AShooterCharacter::SetReloadMontageSection(FName& MontageSection)
 		case EWeaponType::EWT_SMG:
 			MontageSection = TEXT("ReloadSMG");
 			break;
-		case EWeaponType::EWT_Rifle:
+		case EWeaponType::EWT_BurstRifle:
+			MontageSection = TEXT("ReloadRifle");
+			break;
+		case EWeaponType::EWT_AutoRifle:
 			MontageSection = TEXT("ReloadRifle");
 			break;
 	}
@@ -772,35 +827,77 @@ void AShooterCharacter::TraceForItems()
 		if (ItemTraceResult.bBlockingHit)
 		{
 			AItem* HitItem = Cast<AItem>(ItemTraceResult.GetActor());
-			if (HitItem != nullptr && HitItem->GetPickupWidget() != nullptr)
+			if ((HitItem != nullptr) && (HitItem->GetItemState() != EItemState::EIS_PickupInterping))
 			{
-				//Show Item's pickup widget
-				HitItem->GetPickupWidget()->SetVisibility(true);
-			}
 
-			// check it hit an AItem last frame
-			if (TraceHitItemLastFrame != nullptr)
-			{
-				if (HitItem != TraceHitItemLastFrame)
+				if (HitItem->GetPickupWidget() != nullptr)
 				{
-					// It is hitting a different AItem this fram from last frame or HitItem is null
+					//Show Item's pickup widget
+					HitItem->GetPickupWidget()->SetVisibility(true);
+					HitItem->ToggleCustomDepth(true);
+				}
+
+				// Highlight Empty Inventory Slot if there is an empty slot
+				const AWeapon* TraceHitWeapon = Cast<AWeapon>(HitItem);
+				if (TraceHitWeapon != nullptr)
+				{
+					if (HighlightedSlot == -1)
+					{
+						// Start Highlight the Slot
+						HighlightInventorySlot(true);
+					}
+				}
+				else
+				{
+					if (HighlightedSlot != -1)
+					{
+						// Stop Highlight the Slot
+						HighlightInventorySlot(false);
+					}
+				}
+
+				// check it hit an AItem last frame
+				if (TraceHitItemLastFrame != nullptr)
+				{
+					if (HitItem != TraceHitItemLastFrame)
+					{
+						// It is hitting a different AItem this frame from last frame or HitItem is null
+						TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+						TraceHitItemLastFrame->ToggleCustomDepth(false);
+					}
+				}
+
+				// Store a reference to HitItem for next frame
+				TraceHitItemLastFrame = HitItem;
+			}
+			else
+			{
+				HighlightInventorySlot(false);
+				if (TraceHitItemLastFrame != nullptr)
+				{
 					TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+					TraceHitItemLastFrame->ToggleCustomDepth(false);
+					TraceHitItemLastFrame = nullptr;
 				}
 			}
-
-			// Store a reference to HitItem for next frame
-			TraceHitItemLastFrame = HitItem;
+			
 		}
 		else if (TraceHitItemLastFrame != nullptr)
 		{
 			TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+			TraceHitItemLastFrame->ToggleCustomDepth(false);
 			TraceHitItemLastFrame = nullptr;
+			HighlightInventorySlot(false);
+
 		}
 	}
 	else if (TraceHitItemLastFrame != nullptr)
 	{
 		TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+		TraceHitItemLastFrame->ToggleCustomDepth(false);
 		TraceHitItemLastFrame = nullptr;
+		HighlightInventorySlot(false);
+
 	}
 	
 }
@@ -824,7 +921,20 @@ void AShooterCharacter::GetPickupItem(AItem* item)
 		AWeapon* weapon = Cast<AWeapon>(item);
 		if (weapon)
 		{
-			SwapWeapon(weapon);
+			if (!bInventoryFull)
+			{
+				weapon->SetWeaponSlotIndex(Inventory.Num());
+				Inventory.Add(weapon);
+				weapon->SetItemState(EItemState::EIS_PickedUp);
+				if (Inventory.Num() == INVENTORY_CAPACITY)
+				{
+					bInventoryFull = true;
+				}
+			}
+			else // Inventory is full! Swap with EquippedWeapon
+			{
+				SwapWeapon(weapon);
+			}
 		}
 	}
 	if (item->GetItemType() == EItemType::EIT_Ammo)
@@ -838,11 +948,45 @@ void AShooterCharacter::GetPickupItem(AItem* item)
 	
 }
 
+void AShooterCharacter::ChangeEquippedWeapon(int32 CurrentWeaponIndex, int32 NewWeaponIndex)
+{
+	if ( (CurrentWeaponIndex == NewWeaponIndex) || (NewWeaponIndex >= Inventory.Num() ) ||
+		 (NewWeaponIndex < 0) ||
+		 (EquippedWeapon->GetCombatState() == ECombatState::ECS_Reloading) ) {
+		return;
+	}
+	if (Inventory.IsValidIndex(NewWeaponIndex))
+	{
+		AWeapon* NewWeapon = Cast<AWeapon>(Inventory[NewWeaponIndex]);
+		EquipWeapon(NewWeapon);
+		EquippedWeapon->SetCombatState(ECombatState::ECS_Equipping);
+		bChangingWeapon = true;
+
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && EquipMontage)
+		{
+			AnimInstance->Montage_Play(EquipMontage, 1.0);
+			AnimInstance->Montage_JumpToSection(FName("Equip"));
+		}
+	}
+
+
+}
+
+void AShooterCharacter::FinishChangingWeapon()
+{
+	bChangingWeapon = false;
+	EquippedWeapon->SetCombatState(ECombatState::ECS_CanShoot);
+}
+
 void AShooterCharacter::SetAiming(bool AimingButtonPressed)
 {
 	if (AimingButtonPressed)
 	{
-		if (EquippedWeapon && EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading)
+		if ( (EquippedWeapon != nullptr) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+			(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+			(!bChangingWeapon) )
 		{
 			bAiming = true;
 			GetCharacterMovement()->MaxWalkSpeed = CrouchSpeed;
@@ -870,9 +1014,22 @@ void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
 			//WeaponToEquip->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("weapon_r"));
 			WeaponSocket->AttachActor(WeaponToEquip, GetMesh());
 			WeaponToEquip->SetOwner(this);
-			
+			if (EquippedWeapon == nullptr)
+			{
+				// No EquippedWeapon yet. No need to reverse the icon animation
+				EquipItemDelegate.Broadcast(-1, WeaponToEquip->GetWeaponSlotIndex());
+			}
+			else
+			{
+				EquipItemDelegate.Broadcast(EquippedWeapon->GetWeaponSlotIndex(), WeaponToEquip->GetWeaponSlotIndex());
+			}
+
+
 			EquippedWeapon = WeaponToEquip;
 			EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
+
+			
+
 
 		}
 	}
@@ -880,20 +1037,29 @@ void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip)
 
 void AShooterCharacter::DropWeapon()
 {
-	if (EquippedWeapon != nullptr && EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading)
+	if ( (EquippedWeapon != nullptr) &&
+		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+		(!bChangingWeapon) )
 	{
 		FDetachmentTransformRules DetachmentTransformRules(EDetachmentRule::KeepWorld, true);
 		EquippedWeapon->GetItemMesh()->DetachFromComponent(DetachmentTransformRules);
 
 		EquippedWeapon->SetItemState(EItemState::EIS_Falling);
 		EquippedWeapon->ThrowWeapon();
-		EquippedWeapon = nullptr;
+
+		//EquippedWeapon = nullptr;
 
 	}
 }
 
 void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
 {
+	if (Inventory.IsValidIndex(EquippedWeapon->GetWeaponSlotIndex()))
+	{
+		Inventory[EquippedWeapon->GetWeaponSlotIndex()] = WeaponToSwap;
+		WeaponToSwap->SetWeaponSlotIndex(EquippedWeapon->GetWeaponSlotIndex());
+	}
 	DropWeapon();
 	EquipWeapon(WeaponToSwap);
 }
@@ -948,6 +1114,8 @@ void AShooterCharacter::InitializeInterpLocations()
 	InterpLocations.Add(interpLocation);
 
 }
+
+
 int32 AShooterCharacter::GetInterpLocationIndex()
 {
 	int32 lowestIndex = 1;
@@ -1006,6 +1174,39 @@ void AShooterCharacter::ResetEquipSoundTimer()
 		bShouldPlayEquipSound = true;
 }
 
+int AShooterCharacter::GetEmptyInventorySlot()
+{
+	if (bInventoryFull)
+	{
+		return -1;
+	}
+	else
+	{
+		for (int i = 0; i < Inventory.Num(); i++)
+		{
+			if (Inventory[i] == nullptr)
+			{
+				return i;
+			}
+		}
+		return Inventory.Num();
+	}
+}
+void AShooterCharacter::HighlightInventorySlot(bool IsHighlighting)
+{
+	if (IsHighlighting)
+	{
+		HighlightedSlot = GetEmptyInventorySlot();
 
+		HighlightIconDelegate.Broadcast(HighlightedSlot, true);
+	}
+	else
+	{
+		HighlightIconDelegate.Broadcast(HighlightedSlot, false);
+		HighlightedSlot = -1;
+	}
+
+
+}
 
 

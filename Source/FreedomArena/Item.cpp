@@ -8,6 +8,8 @@
 #include "Camera/CameraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundCue.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Curves/CurveVector.h"
 // Sets default values
 AItem::AItem() :
 	Type(EItemType::EIT_Default),
@@ -22,7 +24,14 @@ AItem::AItem() :
 	ZCurveTime(1.0f),
 	InterpSpeed(30.f),
 	InterpInitialYawOffset(0.f),
-	InterpLocationIndex(0)
+	InterpLocationIndex(0),
+	MaterialIndex(0),
+	bCanChangeCustomDepth(true),
+	// Dynamic Material Parameter
+	GlowAmount(10.f),
+	FresnelExponent(4.f),
+	FresnelReflectFraction(0.5f),
+	PulseCurveTime(5.f)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -43,6 +52,55 @@ AItem::AItem() :
 	AreaSphere->SetupAttachment(RootComponent);
 
 
+}
+
+void AItem::OnConstruction(const FTransform& Transform)
+{
+
+	// Path to the Item Rarity Data Table. It can be used instead of reach data table. However, if path is changed, it could break.
+	// FString ItemRarityTablePath(TEXT("/Script/Engine.DataTable'/Game/DataTables/DT_ItemRarity.DT_ItemRarity'"));
+	// UDataTable* ItemRarityDataTable = Cast<UDataTable>(StaticLoadObject(UDataTable::StaticClass(), nullptr, *ItemRarityTablePath) );
+
+	if (ItemRarityDataTable != nullptr)
+	{
+		FItemRarityTableRowBase* RarityRow = nullptr;
+		switch (Rarity)
+		{
+			case EItemRarity::EIR_Common:
+				RarityRow = ItemRarityDataTable->FindRow<FItemRarityTableRowBase>(FName("Common"), TEXT(""), true);
+				break;
+			case EItemRarity::EIR_Uncommon:
+				RarityRow = ItemRarityDataTable->FindRow<FItemRarityTableRowBase>(FName("Uncommon"), TEXT(""), true);
+				break;
+			case EItemRarity::EIR_Rare:
+				RarityRow = ItemRarityDataTable->FindRow<FItemRarityTableRowBase>(FName("Rare"), TEXT(""), true);
+				break;
+			case EItemRarity::EIR_Legendary:
+				RarityRow = ItemRarityDataTable->FindRow<FItemRarityTableRowBase>(FName("Legendary"), TEXT(""), true);
+				break;
+			case EItemRarity::EIR_Mythical:
+				RarityRow = ItemRarityDataTable->FindRow<FItemRarityTableRowBase>(FName("Mythical"), TEXT(""), true);
+				break;
+
+			default:
+				break;
+		}
+
+		if (RarityRow != nullptr)
+		{
+			SetDataFromDataTable(*RarityRow);
+		}
+	}
+
+	if (MaterialInstance)
+	{
+		DynamicMaterialInstance = UMaterialInstanceDynamic::Create(MaterialInstance, this);
+		DynamicMaterialInstance->SetVectorParameterValue(TEXT("FresnelColor"), GlowColor);
+
+		ItemMesh->SetMaterial(MaterialIndex, DynamicMaterialInstance);
+		ToggleGlowMaterial(true);
+
+	}
 }
 
 // Called when the game starts or when spawned
@@ -67,6 +125,10 @@ void AItem::BeginPlay()
 	{
 		SetItemState(EItemState::EIS_NotEquipped);
 	}
+
+	// Set Custom Depth disabled
+	InitializeCustomDepth();
+
 }
 
 void AItem::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -106,6 +168,10 @@ void AItem::Tick(float DeltaTime)
 
 	// Handle Item interpolation when in the EquipInterping State
 	ItemInterp(DeltaTime);
+
+	// GetCurveValues from PulseCurve and Set dynamic material parameters
+	UpdatePulse();
+
 }
 
 void AItem::SetItemState(EItemState itemState)
@@ -116,28 +182,6 @@ void AItem::SetItemState(EItemState itemState)
 
 void AItem::SetActiveStars()
 {
-	int NumberOfStars = 0;
-
-	switch (Rarity)
-	{
-		case EItemRarity::EIR_Common:
-			NumberOfStars = 1;
-			break;
-		case EItemRarity::EIR_Uncommon:
-			NumberOfStars = 2;
-			break;
-		case EItemRarity::EIR_Rare:
-			NumberOfStars = 3;
-			break;
-		case EItemRarity::EIR_Legendary:
-			NumberOfStars = 4;
-			break;
-		case EItemRarity::EIR_Mythical:
-			NumberOfStars = 5;
-			break;
-		default:
-			NumberOfStars = 0;
-	}
 	for (int i = 1; i < 6; i++)
 	{
 		if (i <= NumberOfStars)
@@ -172,6 +216,7 @@ void AItem::SetItemProperties(EItemState itemState)
 			CollisionBox->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
+			HandlePulseTimer();
 			break;
 
 		case EItemState::EIS_Equipped:
@@ -205,7 +250,7 @@ void AItem::SetItemProperties(EItemState itemState)
 
 			break;
 
-		case EItemState::EIS_EquipInterping:
+		case EItemState::EIS_PickupInterping:
 			// Set mesh properties
 			ItemMesh->SetSimulatePhysics(false);
 			ItemMesh->SetEnableGravity(false);
@@ -225,6 +270,19 @@ void AItem::SetItemProperties(EItemState itemState)
 			break;
 
 		case EItemState::EIS_PickedUp:
+			// Set Mesh properties
+			ItemMesh->SetSimulatePhysics(false);
+			ItemMesh->SetEnableGravity(false);
+			ItemMesh->SetVisibility(false);
+			ItemMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			// Set AreaSphere Properties
+			AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			// Set Collision box properties
+			CollisionBox->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 			// Play PickupSound if there is no another PickupSound
 			if (Character)
 			{
@@ -334,11 +392,17 @@ void AItem::FinishInterping()
 		Character->HandleInterpLocItemCount(InterpLocationIndex, -1);
 
 		Character->GetPickupItem(this);
+
+		Character->HighlightInventorySlot(false);
 	}
 	bInterping = false;
 	// Set Scale back gro normal
 	SetActorScale3D(FVector(1.f));
-	SetItemState(EItemState::EIS_PickedUp);
+
+	bCanChangeCustomDepth = true;
+	ToggleCustomDepth(false);
+
+	ToggleGlowMaterial(false);
 }
 
 FVector AItem::GetInterpLocation()
@@ -350,9 +414,56 @@ FVector AItem::GetInterpLocation()
 	return FVector();
 }
 
+void AItem::ToggleCustomDepth(bool bValue)
+{
+	if (bCanChangeCustomDepth)
+	{
+		ItemMesh->SetRenderCustomDepth(bValue);
+	}
+}
+
+
+void AItem::InitializeCustomDepth()
+{
+	ToggleCustomDepth(false);
+}
+
+
+
+
+void AItem::ToggleGlowMaterial(bool bValue)
+{
+
+	if (DynamicMaterialInstance != nullptr)
+	{
+		if (bValue)
+		{
+			DynamicMaterialInstance->SetScalarParameterValue(TEXT("GlowBlendAlpha"), 0);
+		}
+		else
+		{
+			DynamicMaterialInstance->SetScalarParameterValue(TEXT("GlowBlendAlpha"), 1);
+		}
+	}
+
+}
+
+void AItem::SetDataFromDataTable(struct FItemRarityTableRowBase& RarityRow)
+{
+	GlowColor = RarityRow.GlowColor;
+	LightRarityColor = RarityRow.LightRarityColor;
+	DarkRarityColor = RarityRow.DarkRarityColor;
+	IconBackground = RarityRow.IconBackground;
+	NumberOfStars = RarityRow.NumberOfStars;
+	if (ItemMesh != nullptr)
+	{
+		ItemMesh->SetCustomDepthStencilValue(RarityRow.CustomDepthStencil);
+	}
+}
 
 void AItem::StartItemCurve(AShooterCharacter* ShooterChar)
 {
+	bCanChangeCustomDepth = false;
 	// Store a handle to the character
 	Character = ShooterChar;
 	switch (Type)
@@ -372,6 +483,7 @@ void AItem::StartItemCurve(AShooterCharacter* ShooterChar)
 			break;
 	}
 
+
 	// Add 1 to the Item Count for this interp location struct
 	Character->HandleInterpLocItemCount(InterpLocationIndex, 1);
 
@@ -379,7 +491,8 @@ void AItem::StartItemCurve(AShooterCharacter* ShooterChar)
 	ItemInterpStartLocation = GetActorLocation();
 	bInterping = true;
 
-	SetItemState(EItemState::EIS_EquipInterping);
+	SetItemState(EItemState::EIS_PickupInterping);
+	GetWorldTimerManager().ClearTimer(PulseTimer);
 
 	GetWorldTimerManager().SetTimer(
 		ItemInterpTimerHandle, 
@@ -396,4 +509,43 @@ void AItem::StartItemCurve(AShooterCharacter* ShooterChar)
 	InterpInitialYawOffset = ItemRotationYaw - CameraRotationYaw;
 
 }
+
+void AItem::HandlePulseTimer()
+{
+	if (State == EItemState::EIS_NotEquipped)
+	{
+		GetWorldTimerManager().SetTimer(PulseTimer, this, &AItem::HandlePulseTimer, PulseCurveTime);
+	}
+}
+
+void AItem::UpdatePulse()
+{
+	float ElapsedTime;
+	FVector CurveValue;
+
+	if (State == EItemState::EIS_NotEquipped)
+	{
+		if (PulseCurve != nullptr)
+		{
+			ElapsedTime = GetWorldTimerManager().GetTimerElapsed(PulseTimer);
+			CurveValue = PulseCurve->GetVectorValue(ElapsedTime);
+		}
+	}
+	else if (State == EItemState::EIS_PickupInterping)
+	{
+		if (InterpPulseCurve != nullptr)
+		{
+			ElapsedTime = GetWorldTimerManager().GetTimerElapsed(ItemInterpTimerHandle);
+			CurveValue = InterpPulseCurve->GetVectorValue(ElapsedTime);
+		}
+	}
+	if (DynamicMaterialInstance)
+	{
+		DynamicMaterialInstance->SetScalarParameterValue(TEXT("GlowAmount"), CurveValue.X * GlowAmount);
+		DynamicMaterialInstance->SetScalarParameterValue(TEXT("FresnelExponent"), CurveValue.Y * FresnelExponent);
+		DynamicMaterialInstance->SetScalarParameterValue(TEXT("FresnelReflectFraction"), CurveValue.Z * FresnelReflectFraction);
+	}
+
+}
+
 

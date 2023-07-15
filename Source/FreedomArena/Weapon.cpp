@@ -10,7 +10,8 @@ AWeapon::AWeapon():
 	ThrowPower(5'000.f),
 	WeaponCombatState(ECombatState::ECS_CanShoot),
 	MagazineMaxCapacity(30),
-	MagazineBoneName(TEXT("smg_clip"))
+	MagazineBoneName(TEXT("smg_clip")),
+	WeaponSlotIndex(0)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	Type = EItemType::EIT_Weapon;
@@ -43,6 +44,8 @@ void AWeapon::Tick(float DeltaTime)
 void AWeapon::ThrowWeapon()
 {
 	ItemAmount = Ammo;
+
+	ToggleGlowMaterial(true);
 
 	FRotator MeshRotation = FRotator(0.f, GetItemMesh()->GetComponentRotation().Yaw, 0.f);
 	GetItemMesh()->SetWorldRotation(MeshRotation, false, nullptr, ETeleportType::TeleportPhysics);

@@ -39,6 +39,10 @@ public:
 
 	FORCEINLINE FName GetMagazineBoneName() const { return MagazineBoneName; }
 	FORCEINLINE void SetMagMoving(bool isMoving) { bMagMoving = isMoving; }
+
+	FORCEINLINE int32 GetWeaponSlotIndex() const { return WeaponSlotIndex; }
+	FORCEINLINE void SetWeaponSlotIndex(int32 Index) { WeaponSlotIndex = Index; }
+
 	// Check the make sure the weapon has ammo or not
 	UFUNCTION()
 	bool WeaponHasAmmo();
@@ -81,4 +85,8 @@ private:
 	// True when magazine is moving while reloading
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
 	bool bMagMoving;
+
+	// Slot Index in the InventoryArray of Character
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory, meta = (AllowPrivateAccess = "true"))
+	int32 WeaponSlotIndex;
 };

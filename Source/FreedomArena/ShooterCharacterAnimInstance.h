@@ -125,7 +125,12 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crouching", meta = (AllowPrivateAccess = "true"))
 	bool bCrouching;
 
+
 	// Change recoil weight based on offset state
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float RecoilWeight;
+
+	// True while changing weapon
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ChangeWeapon", meta = (AllowPrivateAccess = "true"))
+	bool bChangingWeapon;
 };

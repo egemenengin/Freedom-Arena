@@ -72,7 +72,7 @@ void UShooterCharacterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 
 		bAiming = ShooterCharacter->GetIsAiming();
 		SetOffsetState();
-
+		bChangingWeapon = ShooterCharacter->GetIsChangingWeapon();
 		bCrouching = ShooterCharacter->GetIsCrouching();
 		
 	}
@@ -154,7 +154,7 @@ void UShooterCharacterAnimInstance::TurnInPlace()
 		if (bTurning)
 		{
 			
-			if (bReloading)
+			if (bReloading || bChangingWeapon)
 			{
 				RecoilWeight = 1.f;
 			}
@@ -167,7 +167,7 @@ void UShooterCharacterAnimInstance::TurnInPlace()
 		{
 			if (bCrouching)
 			{
-				if (bReloading)
+				if (bReloading || bChangingWeapon)
 				{
 					RecoilWeight = 1.f;
 				}

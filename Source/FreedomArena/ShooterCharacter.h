@@ -30,6 +30,10 @@ struct FInterpLocation
 		ItemCount = itemCount;
 	}
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEquipItemDelegate, int32, CurrentSlotIndex, int32, NewSlotIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHighlightIconDelegate, int32, SlotIndex, bool, bStartAnimation);
+
 UCLASS()
 class FREEDOMARENA_API AShooterCharacter : public ACharacter
 {
@@ -113,6 +117,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	class UAnimMontage* ReloadMontage;
 
+	// Montage for equipping item
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* EquipMontage;
+
 	// Particles spawned when bullet hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	UParticleSystem* ImpactParticles;
@@ -155,7 +163,16 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
 	float SoundResetTime;
 
-	
+	// Delegate for sending slot information to InventoryBar when equipping
+	UPROPERTY(BlueprintAssignable, Category = Delegates, meta = (AllowPrivateAccess = "true") )
+	FEquipItemDelegate EquipItemDelegate;
+
+	// Delegate for sending slot information to InventoryBar for playing the slot highlight animation 
+	UPROPERTY(BlueprintAssignable, Category = Delegates, meta = (AllowPrivateAccess = "true") )
+	FHighlightIconDelegate HighlightIconDelegate;
+
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
+	bool bChangingWeapon;
 public:
 	// GETTERS
 	//Returns the FollowCamera subobject
@@ -172,7 +189,9 @@ public:
 	FORCEINLINE bool GetShouldPlayEquipSound() const { return bShouldPlayEquipSound; }
 	FORCEINLINE bool GetShouldPlayPickupSound() const { return bShouldPlayPickupSound; }
 	FORCEINLINE float GetSoundResetTime() const { return SoundResetTime; }
+	FORCEINLINE bool GetIsInventoryFull() const { return bInventoryFull; }
 
+	FORCEINLINE bool GetIsChangingWeapon() const { return bChangingWeapon; }
 	AWeapon* GetEquippedWeapon();
 
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
@@ -304,7 +323,19 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
 	class AWeapon* EquippedWeapon;
 
+	// An array of AItems for our Inventory
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory, meta = (AllowPrivateAcces = "true"))
+	TArray<AItem*> Inventory;
+	
+	const int32 INVENTORY_CAPACITY = 6;
 
+	// True if character inv is full
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory, meta = (AllowPrivateAccess = "true"))
+	bool bInventoryFull;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory, meta = (AllowPrivateAccess = "true") )
+	int HighlightedSlot;
+	
 	// Set this in BP for weapon class
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
 	TSubclassOf<AWeapon> WeaponClass;
@@ -359,8 +390,7 @@ protected:
 	UFUNCTION()
 	void ReloadInputHandler(const FInputActionValue& value);
 
-	// Handle change weapon input
-	void ChangeWeaponInputHandler(const FInputActionValue& value);
+
 
 	// Handle fire input
 	UFUNCTION()
@@ -377,6 +407,10 @@ protected:
 	// Handle drop an weapon input
 	UFUNCTION()
 	void DropItemInputHandler(const FInputActionValue& value);
+
+	// Handle with inventory selection input
+	UFUNCTION()
+	void InventorySelectInputHandler(const FInputActionValue& value);
 	/* ---------------------------------------------- */
 	//Fire Weapon Funcitons
 	UFUNCTION()
@@ -451,7 +485,7 @@ protected:
 	// Takes a weapon, attaches it to mesh and equips it
 	UFUNCTION()
 	void EquipWeapon(AWeapon* WeaponToEquip);
-
+	
 	// Detach weapon and let it fall to the ground
 	UFUNCTION()
 	void DropWeapon();
@@ -460,6 +494,13 @@ protected:
 	UFUNCTION()
 	void SwapWeapon(AWeapon* WeaponToSwap);
 	
+	// Change EquippedWeapon with an weapon in inventory
+	UFUNCTION()
+	void ChangeEquippedWeapon(int32 CurrentWeaponIndex, int32 NewWeaponIndex);
+
+	UFUNCTION(BlueprintCallable)
+	void FinishChangingWeapon();
+
 	UFUNCTION()
 	void SetAiming(bool AimButonPressed);
 
@@ -470,7 +511,10 @@ protected:
 	UFUNCTION()
 	void InitializeInterpLocations();
 
-	
+	UFUNCTION()
+	int GetEmptyInventorySlot();
+
+
 public:
 	UFUNCTION()
 	void GetPickupItem(AItem* item);
@@ -493,4 +537,7 @@ public:
 
 	UFUNCTION()
 	void ResetEquipSoundTimer();
+
+	UFUNCTION()
+	void HighlightInventorySlot(bool IsHighlighting);
 };
