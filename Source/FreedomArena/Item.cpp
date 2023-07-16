@@ -88,19 +88,11 @@ void AItem::OnConstruction(const FTransform& Transform)
 
 		if (RarityRow != nullptr)
 		{
-			SetDataFromDataTable(*RarityRow);
+			SetItemRarityData(*RarityRow);
 		}
 	}
-
-	if (MaterialInstance)
-	{
-		DynamicMaterialInstance = UMaterialInstanceDynamic::Create(MaterialInstance, this);
-		DynamicMaterialInstance->SetVectorParameterValue(TEXT("FresnelColor"), GlowColor);
-
-		ItemMesh->SetMaterial(MaterialIndex, DynamicMaterialInstance);
-		ToggleGlowMaterial(true);
-
-	}
+	HandleMaterialInstances();
+	
 }
 
 // Called when the game starts or when spawned
@@ -448,7 +440,7 @@ void AItem::ToggleGlowMaterial(bool bValue)
 
 }
 
-void AItem::SetDataFromDataTable(struct FItemRarityTableRowBase& RarityRow)
+void AItem::SetItemRarityData(struct FItemRarityTableRowBase& RarityRow)
 {
 	GlowColor = RarityRow.GlowColor;
 	LightRarityColor = RarityRow.LightRarityColor;
@@ -547,5 +539,16 @@ void AItem::UpdatePulse()
 	}
 
 }
+void AItem::HandleMaterialInstances()
+{
+	if (MaterialInstance)
+	{
+		DynamicMaterialInstance = UMaterialInstanceDynamic::Create(MaterialInstance, this);
+		DynamicMaterialInstance->SetVectorParameterValue(TEXT("FresnelColor"), GlowColor);
 
+		ItemMesh->SetMaterial(MaterialIndex, DynamicMaterialInstance);
+		ToggleGlowMaterial(true);
+
+	}
+}
 

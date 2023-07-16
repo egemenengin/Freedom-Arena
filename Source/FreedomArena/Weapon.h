@@ -8,7 +8,47 @@
 
 #include "Weapon.generated.h"
 
+USTRUCT(BlueprintType)
+struct FWeaponDataTableRowBase : public FTableRowBase
+{
+	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EAmmoType AmmoType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int MagCapacity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Ammo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int Damage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USkeletalMesh* WeaponMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USoundCue* PickupSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USoundCue* EquipSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString WeaponName;
+		
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UTexture2D* InventoryIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UTexture2D* AmmoIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UMaterialInstance* MaterialInstance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int MaterialIndex;
+};
 UCLASS()
 class FREEDOMARENA_API AWeapon : public AItem
 {
@@ -18,6 +58,8 @@ public:
 	AWeapon();
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void OnConstruction(const FTransform& Transform) override;
 public:
 	virtual void Tick(float DeltaTime) override;
 	
@@ -55,11 +97,13 @@ public:
 protected:
 
 	void StopFalling();
+
+	void SetWeaponTypeData(struct FWeaponDataTableRowBase& WeaponDataRow);
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponProperties", meta = (AllowPrivateAccess = "true"))
 	ECombatState WeaponCombatState;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponProperties", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WeaponProperties", meta = (AllowPrivateAccess = "true"))
 	EWeaponType WeaponType;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WeaponProperties", meta = (AllowPrivateAccess = "true"))
@@ -69,6 +113,9 @@ private:
 	float ThrowWeaponTime;
 	bool bFalling;
 	float ThrowPower;
+	// Damage
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
+	int Damage;
 
 	// Max Mag Size
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
@@ -89,4 +136,13 @@ private:
 	// Slot Index in the InventoryArray of Character
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory, meta = (AllowPrivateAccess = "true"))
 	int32 WeaponSlotIndex;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = DataTable, meta = (AllowPrivateAccess = "true"))
+	class UDataTable* WeaponTypeDataTable;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
+	UTexture2D* InventoryIcon;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
+	UTexture2D* AmmoIcon;
 };

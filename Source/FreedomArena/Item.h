@@ -66,6 +66,7 @@ struct FItemRarityTableRowBase : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int CustomDepthStencil;
 };
+
 UCLASS()
 class FREEDOMARENA_API AItem : public AActor
 {
@@ -115,7 +116,9 @@ public:
 	FORCEINLINE int64 GetItemAmount() const { return ItemAmount; }
 
 	FORCEINLINE void SetCharacter(AShooterCharacter* Char) { Character = Char; };
-
+	FORCEINLINE void SetMaterialInstance(UMaterialInstance* NewMatInstance) { MaterialInstance = NewMatInstance; }
+	FORCEINLINE int GetMaterialIndex() const { return MaterialIndex; }
+	FORCEINLINE void SetMaterialIndex(int MatIndex) { MaterialIndex = MatIndex; }
 	void SetItemState(EItemState itemState);
 
 private:
@@ -200,7 +203,7 @@ protected:
 
 	// The amount of ammo, money etc. which appears on the PickupWidget
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
-	int64 ItemAmount;
+	int ItemAmount;
 
 	// The curve asset to use for the item's Z location when interping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
@@ -319,7 +322,7 @@ protected:
 	void UpdatePulse();
 
 	UFUNCTION()
-	void SetDataFromDataTable(struct FItemRarityTableRowBase& RarityRow);
+	void SetItemRarityData(struct FItemRarityTableRowBase& RarityRow);
 public:
 	// Called from the AShooterCharacter class
 	UFUNCTION()
@@ -330,4 +333,7 @@ public:
 
 	UFUNCTION()
 	virtual void ToggleGlowMaterial(bool bValue);
+
+	UFUNCTION()
+	void HandleMaterialInstances();
 };

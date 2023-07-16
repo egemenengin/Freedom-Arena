@@ -17,12 +17,41 @@ AWeapon::AWeapon():
 	Type = EItemType::EIT_Weapon;
 
 }
-
+void AWeapon::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	if (WeaponTypeDataTable != nullptr)
+	{
+		FWeaponDataTableRowBase* WeaponDataRow = nullptr;
+		switch (WeaponType)
+		{
+			case EWeaponType::EWT_Pistol:
+				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("Pistol"), TEXT(""), true);
+				break;
+			case EWeaponType::EWT_SMG:
+				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("SMG"), TEXT(""), true);
+				break;
+			case EWeaponType::EWT_BurstRifle:
+				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("BurstRifle"), TEXT(""), true);
+				break;
+			case EWeaponType::EWT_AutoRifle:
+				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("AutoRifle"), TEXT(""), true);
+				break;
+			default:
+				break;
+		}
+		if (WeaponDataRow != nullptr)
+		{
+			SetWeaponTypeData(*WeaponDataRow);
+		}
+	}
+	
+}
 void AWeapon::BeginPlay()
 {
 	Super::BeginPlay();
-	ItemAmount = MagazineMaxCapacity;
-	Ammo = ItemAmount;
+	ItemAmount = Ammo;
+
 	if (Ammo <= 0)
 	{
 		SetCombatState(ECombatState::ECS_OutOfAmmo);
@@ -115,4 +144,23 @@ void AWeapon::StopFalling()
 {
 	bFalling = false;
 	SetItemState(EItemState::EIS_NotEquipped);
+}
+
+void AWeapon::SetWeaponTypeData(struct FWeaponDataTableRowBase& WeaponDataRow)
+{
+	WeaponAmmoType = WeaponDataRow.AmmoType;
+	MagazineMaxCapacity = WeaponDataRow.MagCapacity;
+	Ammo = WeaponDataRow.Ammo;
+	Damage = WeaponDataRow.Damage;
+	GetItemMesh()->SetSkeletalMesh(WeaponDataRow.WeaponMesh);
+	PickUpSound = WeaponDataRow.PickupSound;
+	EquipSound = WeaponDataRow.EquipSound;
+	ItemName = WeaponDataRow.WeaponName;
+	InventoryIcon = WeaponDataRow.InventoryIcon;
+	AmmoIcon = WeaponDataRow.AmmoIcon;
+	GetItemMesh()->SetMaterial(GetMaterialIndex(), nullptr);
+	SetMaterialInstance(WeaponDataRow.MaterialInstance);
+	SetMaterialIndex(WeaponDataRow.MaterialIndex);
+
+	HandleMaterialInstances();
 }
