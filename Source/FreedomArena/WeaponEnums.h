@@ -18,7 +18,7 @@ enum class EWeaponType :uint8
 	EWT_AutoRifle UMETA(DisplayName = "AutoRifle"),
 	EWT_None UMETA(DisplayName = "None"),
 
-	ECS_MAX  UMETA(DisplayName = "DEFAULT MAX")
+	EWT_MAX  UMETA(DisplayName = "DEFAULT MAX")
 };
 UENUM(BlueprintType)
 enum class EAmmoType : uint8 {

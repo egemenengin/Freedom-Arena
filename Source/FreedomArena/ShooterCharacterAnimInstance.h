@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "WeaponEnums.h"
 #include "ShooterCharacterAnimInstance.generated.h"
 
 /**
@@ -133,4 +134,12 @@ private:
 	// True while changing weapon
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ChangeWeapon", meta = (AllowPrivateAccess = "true"))
 	bool bChangingWeapon;
+
+	// EquippedWeapon weapon type 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true") )
+	EWeaponType EquippedWeaponType;
+
+	// EquippedWeapon combat state
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = "true") )
+	ECombatState EquippedWeaponCombatState;
 };

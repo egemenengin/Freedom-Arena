@@ -101,14 +101,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Effects, meta = (AllowPrivateAccess = "true"))
 	float ItemInterpUpDistance;
 
-	// Randomized gunshot sound cue
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
-	class USoundCue* FireSound;
-
-	// Muzzle flash when shot at Muzzle Socket
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (AllowPrivateAccess = "true"))
-	class UParticleSystem* MuzzleFlash;
-
 	// Montage for firing weapon
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation, meta = (AllowPrivateAccess = "true"))
 	class UAnimMontage* HipFireMontage;
@@ -287,10 +279,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
 	FTimerHandle CrosshairShootTimer;
-	
-	// Delay between shots
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Crosshair, meta = (AllowPrivateAcces = "true"))
-	float ShootingDelay;
 
 	// Sets timer between shots
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
@@ -369,6 +357,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UShooterCharacterInputConfigData* InputActions;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	bool bIsJustShooted;
 	/* INPUT HANDLER FUNCTIONS */
 	// Handle movement input
 	UFUNCTION()

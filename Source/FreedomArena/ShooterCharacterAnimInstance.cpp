@@ -23,7 +23,9 @@ UShooterCharacterAnimInstance::UShooterCharacterAnimInstance() :
 	OffsetState(EOffsetState::EOS_Hip),
 	CharacterRotation(FRotator(0.f)),
 	CharacterRotationLastFrame(FRotator(0.f)),
-	RecoilWeight(1.f)
+	RecoilWeight(1.f),
+	EquippedWeaponType(EWeaponType::EWT_MAX),
+	EquippedWeaponCombatState(ECombatState::ECS_MAX)
 {
 }
 
@@ -75,6 +77,13 @@ void UShooterCharacterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 		bChangingWeapon = ShooterCharacter->GetIsChangingWeapon();
 		bCrouching = ShooterCharacter->GetIsCrouching();
 		
+
+		// Check if ShooterCharacter has a valid equipped weapon
+		if (ShooterCharacter->GetEquippedWeapon() != nullptr)
+		{
+			EquippedWeaponType = ShooterCharacter->GetEquippedWeapon()->GetWeaponType();
+			EquippedWeaponCombatState = ShooterCharacter->GetEquippedWeapon()->GetCombatState();
+		}
 	}
 	TurnInPlace();
 	Lean(DeltaTime);

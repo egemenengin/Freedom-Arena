@@ -4,14 +4,20 @@
 
 #include "Weapon.h"
 
-AWeapon::AWeapon():
+AWeapon::AWeapon() :
 	ThrowWeaponTime(0.7f),
 	bFalling(false),
 	ThrowPower(5'000.f),
 	WeaponCombatState(ECombatState::ECS_CanShoot),
 	MagazineMaxCapacity(30),
 	MagazineBoneName(TEXT("smg_clip")),
-	WeaponSlotIndex(0)
+	WeaponSlotIndex(0),
+	SlideDisplacementAmount(0),
+	SlideDisplacementTime(0.5f),
+	MaxSlideDisplacement(4.f),
+	bMovingSlide(false),
+	MaxRecoilRotation(20.f),
+	bIsRecoiling(false)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	Type = EItemType::EIT_Weapon;
@@ -57,6 +63,11 @@ void AWeapon::BeginPlay()
 		SetCombatState(ECombatState::ECS_OutOfAmmo);
 	}
 
+	if (BoneNameToHide != FName(""))
+	{
+		GetItemMesh()->HideBoneByName(BoneNameToHide, EPhysBodyOp::PBO_None);
+	}
+
 }
 
 void AWeapon::Tick(float DeltaTime)
@@ -68,6 +79,9 @@ void AWeapon::Tick(float DeltaTime)
 		FRotator MeshRotation = FRotator(0.f, GetItemMesh()->GetComponentRotation().Yaw, 0.f);
 		GetItemMesh()->SetWorldRotation(MeshRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
+	UpdateSlideDisplacement();
+	UpdateRecoil();
+
 }
 
 void AWeapon::ThrowWeapon()
@@ -90,6 +104,18 @@ void AWeapon::ThrowWeapon()
 	bFalling = true;
 
 	GetWorldTimerManager().SetTimer(ThrowWeaponTimer, this, &AWeapon::StopFalling, ThrowWeaponTime, false);
+}
+
+void AWeapon::StartSlideTimer()
+{
+	bMovingSlide = true;
+	GetWorldTimerManager().SetTimer(SlideDisplacementTimer, this, &AWeapon::StopSliding, SlideDisplacementTime, false);
+}
+
+void AWeapon::StartRecoil()
+{
+	bIsRecoiling = true;
+	GetWorldTimerManager().SetTimer(RecoilTimer, this, &AWeapon::StopRecoil, AutoFireRate, false);
 }
 
 bool AWeapon::WeaponHasAmmo()
@@ -152,15 +178,66 @@ void AWeapon::SetWeaponTypeData(struct FWeaponDataTableRowBase& WeaponDataRow)
 	MagazineMaxCapacity = WeaponDataRow.MagCapacity;
 	Ammo = WeaponDataRow.Ammo;
 	Damage = WeaponDataRow.Damage;
+	bAutomatic = WeaponDataRow.bAutomatic;
+	AutoFireRate = WeaponDataRow.AutoFireRate;
+	MaxRecoilRotation = WeaponDataRow.MaxRecoilRotation;
+
 	GetItemMesh()->SetSkeletalMesh(WeaponDataRow.WeaponMesh);
+
 	PickUpSound = WeaponDataRow.PickupSound;
 	EquipSound = WeaponDataRow.EquipSound;
+
 	ItemName = WeaponDataRow.WeaponName;
 	InventoryIcon = WeaponDataRow.InventoryIcon;
 	AmmoIcon = WeaponDataRow.AmmoIcon;
+
 	GetItemMesh()->SetMaterial(GetMaterialIndex(), nullptr);
 	SetMaterialInstance(WeaponDataRow.MaterialInstance);
 	SetMaterialIndex(WeaponDataRow.MaterialIndex);
 
 	HandleMaterialInstances();
+
+	MagazineBoneName = WeaponDataRow.MagBoneName;
+	ReloadMontageSection = WeaponDataRow.ReloadMontageSection;
+
+	GetItemMesh()->SetAnimInstanceClass(WeaponDataRow.AnimBP);
+
+	MuzzleFlash = WeaponDataRow.MuzzleFlash;
+	FireSound = WeaponDataRow.FireSound;
+
+	BoneNameToHide = WeaponDataRow.BoneNameToHide;
+	MuzzleSocketName = WeaponDataRow.MuzzleSocketName;
+
+	RecoilCurve = WeaponDataRow.RecoilCurve;
+}
+
+void AWeapon::UpdateSlideDisplacement()
+{
+	if ( (SlidingDisplacementCurve != nullptr) && (bMovingSlide == true) )
+	{
+		const float ElapsedTime = GetWorldTimerManager().GetTimerElapsed(SlideDisplacementTimer);
+		const float CurveValue = SlidingDisplacementCurve->GetFloatValue(ElapsedTime);
+
+		SlideDisplacementAmount = CurveValue * MaxSlideDisplacement;
+	}
+}
+
+void AWeapon::StopSliding()
+{
+	bMovingSlide = false;
+}
+
+void AWeapon::UpdateRecoil()
+{
+	if ((RecoilCurve != nullptr) && (bIsRecoiling == true))
+	{
+		const float ElapsedTime = GetWorldTimerManager().GetTimerElapsed(RecoilTimer);
+		const float CurveValue = RecoilCurve->GetFloatValue(ElapsedTime);
+		RecoilRotation = CurveValue * MaxRecoilRotation;
+	}
+}
+
+void AWeapon::StopRecoil()
+{
+	bIsRecoiling = false;
 }

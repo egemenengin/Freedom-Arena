@@ -55,8 +55,6 @@ AShooterCharacter::AShooterCharacter() :
 	// Crosshair bullet fire factor timer variables
 	CrosshairShootTimeDuration(0.05f),
 	bCrosshairShooting(false),
-	// Shooting delay variables
-	ShootingDelay(0.15f),
 	// Trace variables
 	ItemTraceHitRange(300.f),
 	GunTraceHitRange(10'000.f),
@@ -71,7 +69,8 @@ AShooterCharacter::AShooterCharacter() :
 	bChangingWeapon(false),
 	// Inventory
 	bInventoryFull(false),
-	HighlightedSlot(-1)
+	HighlightedSlot(-1),
+	bIsJustShooted(false)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -301,9 +300,11 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 {
 	if (value.Get<float>() > 0)
 	{
-		if ( EquippedWeapon != nullptr &&  EquippedWeapon->GetCombatState() == ECombatState::ECS_CanShoot)
+		if ( (EquippedWeapon != nullptr) &&
+			(EquippedWeapon->GetCombatState() == ECombatState::ECS_CanShoot) &&
+			(bIsJustShooted == false))
 		{
-
+			bIsJustShooted = true;
 			PlayFireSound();
 
 			SendBullet();
@@ -318,14 +319,24 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 
 			EquippedWeapon->SetCombatState(ECombatState::ECS_ShootingCooldown);
 
-			GetWorldTimerManager().SetTimer(ShootingTimerHandle, this, &AShooterCharacter::SetCanShoot, ShootingDelay, false);
-		
+			GetWorldTimerManager().SetTimer(ShootingTimerHandle, this, &AShooterCharacter::SetCanShoot, EquippedWeapon->GetFireRate(), false);
+			
+			if (EquippedWeapon->GetWeaponType() == EWeaponType::EWT_Pistol)
+			{
+				EquippedWeapon->StartSlideTimer();
+			}
+			EquippedWeapon->StartRecoil();
 		}
 		else if (EquippedWeapon->GetCombatState() != ECombatState::ECS_OutOfAmmo)
 		{
 			// Play out of ammo sound
 		}
 	}
+	else
+	{
+		bIsJustShooted = false;
+	}
+
 }
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation)
@@ -445,16 +456,16 @@ void AShooterCharacter::InventorySelectInputHandler(const FInputActionValue& val
 void AShooterCharacter::PlayFireSound()
 {
 	// Shoting Sound 
-	if (FireSound)
+	if (EquippedWeapon->GetFireSound() != nullptr)
 	{
-		UGameplayStatics::PlaySound2D(this, FireSound);
+		UGameplayStatics::PlaySound2D(this, EquippedWeapon->GetFireSound());
 	}
 }
 
 void AShooterCharacter::SendBullet()
 {
 	// Get Muzzle Socket
-	const USkeletalMeshSocket* MuzzleSocket = EquippedWeapon->GetItemMesh()->GetSocketByName("muzzleSocket");
+	const USkeletalMeshSocket* MuzzleSocket = EquippedWeapon->GetItemMesh()->GetSocketByName(EquippedWeapon->GetMuzzleSocketName());
 
 	if (MuzzleSocket != nullptr)
 	{
@@ -462,9 +473,9 @@ void AShooterCharacter::SendBullet()
 		const FTransform socketTransform = MuzzleSocket->GetSocketTransform(EquippedWeapon->GetItemMesh());
 
 		// Spawn Muzzle Flash
-		if (MuzzleFlash != nullptr)
+		if (EquippedWeapon->GetMuzzleFlash() != nullptr)
 		{
-			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash, socketTransform);
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), EquippedWeapon->GetMuzzleFlash(), socketTransform);
 		}
 
 
@@ -532,7 +543,7 @@ void AShooterCharacter::ReloadInputHandler(const FInputActionValue& value)
 				if (AnimInstance != nullptr && ReloadMontage != nullptr)
 				{
 					AnimInstance->Montage_Play(ReloadMontage);
-					AnimInstance->Montage_JumpToSection(MontageSection);
+					AnimInstance->Montage_JumpToSection(EquippedWeapon->GetReloadMontageSection());
 				}
 				GetWorldTimerManager().SetTimer(ReloadingTimerHandle, this, &AShooterCharacter::ReloadFinished, 2.20f, false);
 			}
@@ -659,9 +670,9 @@ void AShooterCharacter::FinishCrosshairShooting()
 void AShooterCharacter::SetCanShoot()
 {
 	if ( (EquippedWeapon != nullptr) &&
-		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
-		(EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
-		(!bChangingWeapon) )
+		 (EquippedWeapon->GetCombatState() != ECombatState::ECS_Reloading) &&
+		 (EquippedWeapon->GetCombatState() != ECombatState::ECS_Equipping) &&
+		 (!bChangingWeapon) )
 	{
 		if (EquippedWeapon->GetAmmo() > 0)
 		{
@@ -670,6 +681,11 @@ void AShooterCharacter::SetCanShoot()
 		else
 		{
 			EquippedWeapon->SetCombatState(ECombatState::ECS_OutOfAmmo);
+		}
+
+		if (EquippedWeapon->GetIsAuto() == true)
+		{
+			bIsJustShooted = false;
 		}
 	}
 }
@@ -957,7 +973,12 @@ void AShooterCharacter::ChangeEquippedWeapon(int32 CurrentWeaponIndex, int32 New
 	}
 	if (Inventory.IsValidIndex(NewWeaponIndex))
 	{
+		if (bAiming)
+		{
+			SetAiming(false);
+		}
 		AWeapon* NewWeapon = Cast<AWeapon>(Inventory[NewWeaponIndex]);
+		EquippedWeapon->SetItemState(EItemState::EIS_PickedUp);
 		EquipWeapon(NewWeapon);
 		EquippedWeapon->SetCombatState(ECombatState::ECS_Equipping);
 		bChangingWeapon = true;
@@ -977,6 +998,10 @@ void AShooterCharacter::FinishChangingWeapon()
 {
 	bChangingWeapon = false;
 	EquippedWeapon->SetCombatState(ECombatState::ECS_CanShoot);
+	if (bAimingButtonPressed == true)
+	{
+		SetAiming(true);
+	}
 }
 
 void AShooterCharacter::SetAiming(bool AimingButtonPressed)
