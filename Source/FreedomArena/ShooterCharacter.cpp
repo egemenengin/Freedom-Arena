@@ -18,6 +18,9 @@
 #include "Animation/AnimInstance.h"
 #include "Weapon.h"
 #include "Ammo.h"
+#include "FreedomArena.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
 	MovementSpeed(100.f),
@@ -188,6 +191,7 @@ void AShooterCharacter::Tick(float DeltaTime)
 	
 	//Interpolate the capsule half height based on crouching/standing
 	InterpCapsuleHalfHeight(DeltaTime);
+
 }
 
 // Called to bind functionality to input
@@ -367,7 +371,7 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 
 		// TODO Delete
 		//DrawDebugLine(GetWorld(), WeaponTraceStart, WeaponHitResult.Location, FColor::Red, true, 5.f);
-
+		
 		if (WeaponHitResult.bBlockingHit) // is there any object between barrel and BeamEndPoint?
 		{
 			outBeamLocation = WeaponHitResult.Location;
@@ -1231,6 +1235,19 @@ void AShooterCharacter::HighlightInventorySlot(bool IsHighlighting)
 		HighlightedSlot = -1;
 	}
 
+
+}
+EPhysicalSurface AShooterCharacter::GetFootstepSurface()
+{
+	FHitResult HitResult;
+	const FVector Start = GetActorLocation();
+	const FVector End = GetActorLocation() + FVector(0.f, 0.f, -400.f);
+	FCollisionQueryParams QueryParams;
+	QueryParams.bReturnPhysicalMaterial = true;
+
+	bool isHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams);
+	return HitResult.PhysMaterial->SurfaceType;
+	//return UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
 
 }
 

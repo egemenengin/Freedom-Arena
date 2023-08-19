@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "WeaponEnums.h"
+
 #include "ShooterCharacter.generated.h"
 
 USTRUCT(BlueprintType)
@@ -504,7 +505,8 @@ protected:
 	UFUNCTION()
 	int GetEmptyInventorySlot();
 
-
+	UFUNCTION(BlueprintCallable)
+	UPARAM(DisplayName = "PhysicalSurface") EPhysicalSurface GetFootstepSurface();
 public:
 	UFUNCTION()
 	void GetPickupItem(AItem* item);

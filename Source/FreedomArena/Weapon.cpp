@@ -38,7 +38,7 @@ void AWeapon::OnConstruction(const FTransform& Transform)
 				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("SMG"), TEXT(""), true);
 				break;
 			case EWeaponType::EWT_BurstRifle:
-				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("BurstRifle"), TEXT(""), true);
+				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("SemiAutoRifle"), TEXT(""), true);
 				break;
 			case EWeaponType::EWT_AutoRifle:
 				WeaponDataRow = WeaponTypeDataTable->FindRow<FWeaponDataTableRowBase>(FName("AutoRifle"), TEXT(""), true);
