@@ -101,10 +101,13 @@ void UShooterCharacterAnimInstance::TurnInPlace()
 			TIPCharacterYawLastFrame = TIPCharacterYaw;
 			TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
 			const float TIPYawDelta = TIPCharacterYaw - TIPCharacterYawLastFrame;
-
+			UE_LOG(LogTemp, Warning, TEXT("TIPCharacterYawLastFrame %f"), TIPCharacterYawLastFrame);
+			UE_LOG(LogTemp, Warning, TEXT("TIPCharacterYaw %f"), TIPCharacterYaw);
+			UE_LOG(LogTemp, Warning, TEXT("TIPYawDelta %f"), TIPYawDelta);
+			UE_LOG(LogTemp, Warning, TEXT("RootYawOffset %f"), RootYawOffset);
 			// Root yaw offset, updated and clamped [-180, 180] 
 			RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - TIPYawDelta);
-
+			UE_LOG(LogTemp, Warning, TEXT("RootYawOffset %f"), RootYawOffset);
 			// 1.0 if turning, 0.0 if not
 			const float Turning = GetCurveValue(TEXT("Turning"));
 			if (Turning > 0)
