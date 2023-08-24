@@ -59,7 +59,7 @@ AShooterCharacter::AShooterCharacter() :
 	CrosshairShootTimeDuration(0.05f),
 	bCrosshairShooting(false),
 	// Trace variables
-	ItemTraceHitRange(300.f),
+	ItemTraceHitRange(400.f),
 	GunTraceHitRange(10'000.f),
 	// Item trace variables
 	bShouldTraceForItems(false),
@@ -829,8 +829,8 @@ bool AShooterCharacter::TraceUnderCrosshair(FHitResult& OutHitResult, const floa
 		const FVector End = Start + CrosshairWorldDirection * TraceRange;
 		GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECollisionChannel::ECC_Visibility);
 		// TODO Delete
-		// DrawDebugLine(GetWorld(), Start, End, FColor::Red, true, 5.f);
-		// UE_LOG(LogTemp, Warning, TEXT("TEST"));
+		//DrawDebugLine(GetWorld(), Start, End, FColor::Red, true, 5.f);
+		//UE_LOG(LogTemp, Warning, TEXT("HIT NAME: %s"), *OutHitResult.GetActor()->GetName());
 		
 		return true;
 	}
