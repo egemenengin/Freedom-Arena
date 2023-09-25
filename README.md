@@ -1,6 +1,6 @@
 # Freedom-Arena
 ## Unreal Engine 5.1 C++ Project
-Freedom Arena is the first person shooter game.
+Freedom Arena is the third person shooter game.
 
 It is not completed yet.
 ### Story
