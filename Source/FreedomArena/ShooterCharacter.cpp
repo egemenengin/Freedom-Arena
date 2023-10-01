@@ -12,9 +12,10 @@
 #include "ShooterCharacterInputConfigData.h"
 
 #include "Kismet/GameplayStatics.h"
-#include "Sound/SoundCue.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Sound/SoundCue.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "BulletHitInterface.h"
 #include "Animation/AnimInstance.h"
 #include "Weapon.h"
 #include "Ammo.h"
@@ -92,7 +93,7 @@ AShooterCharacter::AShooterCharacter() :
 	// Create and setup FollowCam
 	FollowCam = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCam->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach Camera to end of the CameraBoom
-	FollowCam->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	FollowCam->bUsePawnControlRotation = false; // Camera rotate relative to arm
 
 	HandSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("HandComponent"));
 
@@ -343,42 +344,40 @@ void AShooterCharacter::FireInputHandler(const FInputActionValue& value)
 
 }
 
-bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation)
+bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FHitResult& OutHitResult)
 {
 
 	// Check for crosshair tracehit
 	FHitResult CrosshairHitResult;
-
+	FVector OutBeamLocation;
 	// TODO: GunTraceHitRange = EquippedWeapon->GetRange();
 
 	bool bCrosshairTrace = TraceUnderCrosshair(CrosshairHitResult, GunTraceHitRange);
+	
 	if (bCrosshairTrace)
 	{
-		if (CrosshairHitResult.bBlockingHit)
-		{
-			outBeamLocation = CrosshairHitResult.Location;
-		}
-		else
-		{
-			outBeamLocation = CrosshairHitResult.TraceEnd;
-			
-		}
-		// Perform second line trace, this time from the gun barrel 
-		FHitResult WeaponHitResult;
-		const FVector WeaponTraceStart = MuzzleSocketLocation;
-		const FVector WeaponTraceEnd = outBeamLocation;
-		GetWorld()->LineTraceSingleByChannel(WeaponHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
-
-		// TODO Delete
-		//DrawDebugLine(GetWorld(), WeaponTraceStart, WeaponHitResult.Location, FColor::Red, true, 5.f);
-		
-		if (WeaponHitResult.bBlockingHit) // is there any object between barrel and BeamEndPoint?
-		{
-			outBeamLocation = WeaponHitResult.Location;
-		}
-		return true;
+		OutBeamLocation = CrosshairHitResult.Location;
 	}
-	return false;
+	else
+	{
+		OutBeamLocation = CrosshairHitResult.TraceEnd;
+			
+	}
+	// Perform second line trace, this time from the gun barrel 
+	const FVector WeaponTraceStart = MuzzleSocketLocation;
+	const FVector WeaponTraceEnd = OutBeamLocation;
+	GetWorld()->LineTraceSingleByChannel(OutHitResult, WeaponTraceStart, WeaponTraceEnd, ECollisionChannel::ECC_Visibility);
+
+	// TODO Delete
+	//DrawDebugLine(GetWorld(), WeaponTraceStart, WeaponHitResult.Location, FColor::Red, true, 5.f);
+		
+	if (!OutHitResult.bBlockingHit) // is there any object between barrel and BeamEndPoint?
+	{
+		return false;
+	}
+	return true;
+	
+
 }
 
 void AShooterCharacter::AimingInputHandler(const FInputActionValue& value)
@@ -483,27 +482,39 @@ void AShooterCharacter::SendBullet()
 		}
 
 
-		FVector BeamEndPoint;
-		bool  bSetBeamEnd = GetBeamEndLocation(socketTransform.GetLocation(), BeamEndPoint);
+		FHitResult OutHitResult;
+		bool  bSetBeamEnd = GetBeamEndLocation(socketTransform.GetLocation(), OutHitResult);
 
 		if (bSetBeamEnd) // was the setting BeamEndPoint successful?
 		{
-
-			// Spawn impact particles at end point
-			if (ImpactParticles)
+			if (OutHitResult.GetActor())
 			{
-				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, BeamEndPoint);
-			}
-
-			if (BeamParticles)
-			{
-				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BeamParticles, socketTransform);
-				if (Beam != nullptr)
+				IBulletHitInterface* BulletHitInterface = Cast<IBulletHitInterface>(OutHitResult.GetActor());
+				if (BulletHitInterface)
 				{
-					Beam->SetVectorParameter(FName("Target"), BeamEndPoint);
+					BulletHitInterface->BulletHit_Implementation(OutHitResult);
 				}
+				else
+				{
+					// Spawn default particles
+					if (ImpactParticles)
+					{
+						UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, OutHitResult.Location);
+					}
 
+					if (BeamParticles)
+					{
+						UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BeamParticles, socketTransform);
+						if (Beam != nullptr)
+						{
+							Beam->SetVectorParameter(FName("Target"), OutHitResult.Location);
+						}
+
+					}
+				}
 			}
+			
+			
 		}
 	}
 }
@@ -831,8 +842,10 @@ bool AShooterCharacter::TraceUnderCrosshair(FHitResult& OutHitResult, const floa
 		// TODO Delete
 		//DrawDebugLine(GetWorld(), Start, End, FColor::Red, true, 5.f);
 		//UE_LOG(LogTemp, Warning, TEXT("HIT NAME: %s"), *OutHitResult.GetActor()->GetName());
-		
-		return true;
+		if (OutHitResult.bBlockingHit)
+		{
+			return true;
+		}
 	}
 
 	return false;

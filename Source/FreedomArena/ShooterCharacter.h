@@ -412,7 +412,7 @@ protected:
 	void PlayHipFireMontage();
 	// Getting the beam end point
 	UFUNCTION()
-	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& outBeamLocation);
+	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FHitResult& OutHitResult);
 
 	// Setting Current Camera FOV 
 	UFUNCTION()
