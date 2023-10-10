@@ -5,6 +5,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/DamageType.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -20,6 +21,8 @@
 #include "Weapon.h"
 #include "Ammo.h"
 #include "FreedomArena.h"
+#include "Enemy.h"
+
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 // Sets default values
@@ -74,7 +77,10 @@ AShooterCharacter::AShooterCharacter() :
 	// Inventory
 	bInventoryFull(false),
 	HighlightedSlot(-1),
-	bIsJustShooted(false)
+	bIsJustShooted(false),
+	// Health
+	MaxHealth(100.f),
+	CurrentHealth(100.f)
 {
 	
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -131,6 +137,8 @@ void AShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	CurrentHealth = MaxHealth;
+
 	if (FollowCam)
 	{
 		CameraDefaultFOV = FollowCam->FieldOfView;
@@ -493,6 +501,27 @@ void AShooterCharacter::SendBullet()
 				if (BulletHitInterface)
 				{
 					BulletHitInterface->BulletHit_Implementation(OutHitResult);
+					AEnemy* HitEnemy = Cast<AEnemy>(OutHitResult.GetActor());
+					if (HitEnemy)
+					{
+						if (OutHitResult.BoneName.ToString() == HitEnemy->GetHeadBoneName())
+						{
+							UGameplayStatics::ApplyDamage(OutHitResult.GetActor(), EquippedWeapon->GetHeadshotDamage(), GetController(),
+								this, UDamageType::StaticClass());
+
+							// Show Hit Amount Widget
+							HitEnemy->ShowHitAmount(EquippedWeapon->GetHeadshotDamage(), OutHitResult.Location, true);
+						}
+						else
+						{
+							UGameplayStatics::ApplyDamage(OutHitResult.GetActor(), EquippedWeapon->GetDamage(), GetController(),
+								this, UDamageType::StaticClass());
+
+							// Show Hit Amount Widget
+							HitEnemy->ShowHitAmount(EquippedWeapon->GetDamage(), OutHitResult.Location, false);
+						}
+						
+					}
 				}
 				else
 				{

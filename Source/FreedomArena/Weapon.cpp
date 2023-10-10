@@ -178,6 +178,7 @@ void AWeapon::SetWeaponTypeData(struct FWeaponDataTableRowBase& WeaponDataRow)
 	MagazineMaxCapacity = WeaponDataRow.MagCapacity;
 	Ammo = WeaponDataRow.Ammo;
 	Damage = WeaponDataRow.Damage;
+	HeadshotDamage = WeaponDataRow.HeadShotDamage;
 	bAutomatic = WeaponDataRow.bAutomatic;
 	AutoFireRate = WeaponDataRow.AutoFireRate;
 	MaxRecoilRotation = WeaponDataRow.MaxRecoilRotation;

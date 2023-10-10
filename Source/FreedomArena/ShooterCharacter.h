@@ -360,6 +360,13 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	bool bIsJustShooted;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
+	float CurrentHealth;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
+	float MaxHealth;
+	
 	/* INPUT HANDLER FUNCTIONS */
 	// Handle movement input
 	UFUNCTION()

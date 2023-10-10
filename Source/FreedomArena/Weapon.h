@@ -23,8 +23,11 @@ struct FWeaponDataTableRowBase : public FTableRowBase
 	int Ammo;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int Damage;
+	float Damage;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float HeadShotDamage;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bAutomatic;
 
@@ -110,6 +113,9 @@ public:
 	FORCEINLINE bool GetIsAuto() const { return bAutomatic; }
 	FORCEINLINE float GetFireRate() const { return AutoFireRate; }
 	
+	FORCEINLINE float GetDamage() const { return Damage; }
+	FORCEINLINE float GetHeadshotDamage() const { return HeadshotDamage; }
+
 	FORCEINLINE ECombatState GetCombatState() const { return WeaponCombatState; }
 	FORCEINLINE void SetCombatState(ECombatState state) { WeaponCombatState = state; }
 
@@ -129,6 +135,7 @@ public:
 	FORCEINLINE USoundCue* GetFireSound() const { return FireSound; } 
 	FORCEINLINE UParticleSystem* GetMuzzleFlash() const { return MuzzleFlash; }
 	FORCEINLINE FName GetMuzzleSocketName() const { return MuzzleSocketName; }
+
 	// Check the make sure the weapon has ammo or not
 	UFUNCTION()
 	bool WeaponHasAmmo();
@@ -171,7 +178,11 @@ private:
 
 	// Damage
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true") )
-	int Damage;
+	float Damage;
+
+	// Damage
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
+	float HeadshotDamage;
 
 	// The speed at which automatic fire happens
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true") )
