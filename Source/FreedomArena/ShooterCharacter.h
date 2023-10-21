@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "WeaponEnums.h"
-
+#include "GenericTeamAgentInterface.h"
 #include "ShooterCharacter.generated.h"
+
 
 USTRUCT(BlueprintType)
 struct FInterpLocation
@@ -32,11 +33,12 @@ struct FInterpLocation
 	}
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPlayerDied);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FEquipItemDelegate, int32, CurrentSlotIndex, int32, NewSlotIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHighlightIconDelegate, int32, SlotIndex, bool, bStartAnimation);
 
 UCLASS()
-class FREEDOMARENA_API AShooterCharacter : public ACharacter
+class FREEDOMARENA_API AShooterCharacter : public ACharacter, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -59,6 +61,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	float GetCrosshairSpreadMultiplier() const;
+
+	UPROPERTY(BlueprintAssignable, Category = Delegates, meta = (AllowPrivateAccess = "true"))
+	FPlayerDied PlayerDiedDelegate;
 
 private:
 
@@ -164,6 +169,8 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = Delegates, meta = (AllowPrivateAccess = "true") )
 	FHighlightIconDelegate HighlightIconDelegate;
 
+
+
 	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = EquipItem, meta = (AllowPrivateAccess = "true"))
 	bool bChangingWeapon;
 public:
@@ -187,6 +194,7 @@ public:
 	FORCEINLINE bool GetIsChangingWeapon() const { return bChangingWeapon; }
 	AWeapon* GetEquippedWeapon();
 
+	FORCEINLINE UAnimMontage* GetHitReactMontage() const { return HitReactMontage; }
 	// Adds/subtracts to/from OverlappedItemCount and updates bShouldTraceForItems;
 	void IncrementOverlappedItemCount(int8 Amount);
 
@@ -350,6 +358,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAcces = "true"))
 	USceneComponent* HandSceneComponent;
 	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	class UAnimMontage* HitReactMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	class UAnimMontage* DieMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	class USoundCue* MeleeImpactSound;
+
 	// Input mapping
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAcces = "true"))
 	class UInputMappingContext* InputMapping;
@@ -361,12 +378,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	bool bIsJustShooted;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
 	float MaxHealth;
 	
+	FGenericTeamId TeamId;
+	
+	virtual FGenericTeamId GetGenericTeamId() const override;
 	/* INPUT HANDLER FUNCTIONS */
 	// Handle movement input
 	UFUNCTION()
@@ -539,4 +559,20 @@ public:
 
 	UFUNCTION()
 	void HighlightInventorySlot(bool IsHighlighting);
+
+	UFUNCTION()
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	UFUNCTION()
+	FName DecideHitReactMontageSection(FVector EnemyLocation);
+
+	UFUNCTION()
+	void HitReact(AEnemy* enemy, FVector HitLocation);
+
+	UFUNCTION()
+	void Die();
+
+	UFUNCTION(BlueprintCallable)
+	void FinishDie();
 };
+

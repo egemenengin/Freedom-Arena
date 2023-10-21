@@ -11,8 +11,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "ShooterCharacterInputConfigData.h"
-
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Sound/SoundCue.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -130,13 +130,14 @@ AShooterCharacter::AShooterCharacter() :
 
 	SixthInterpComp = CreateDefaultSubobject<USceneComponent>(TEXT("Sixth Interpolation Component"));
 	SixthInterpComp->SetupAttachment(FollowCam);
+
+	TeamId = FGenericTeamId(0);
 }
 
 // Called when the game starts or when spawned
 void AShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
 	CurrentHealth = MaxHealth;
 
 	if (FollowCam)
@@ -1279,6 +1280,22 @@ void AShooterCharacter::HighlightInventorySlot(bool IsHighlighting)
 
 
 }
+float AShooterCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (CurrentHealth - DamageAmount <= 0)
+	{
+		CurrentHealth = 0;
+		PlayerDiedDelegate.Broadcast();
+		Die();
+		UE_LOG(LogTemp, Warning, TEXT("DIEEEEEE"));
+	}
+	else
+	{
+		CurrentHealth -= DamageAmount;
+	}
+	return DamageAmount;
+}
+
 EPhysicalSurface AShooterCharacter::GetFootstepSurface()
 {
 	FHitResult HitResult;
@@ -1293,4 +1310,71 @@ EPhysicalSurface AShooterCharacter::GetFootstepSurface()
 
 }
 
+FGenericTeamId AShooterCharacter::GetGenericTeamId() const
+{
+	return TeamId;
+}
+FName AShooterCharacter::DecideHitReactMontageSection(FVector EnemyLocation)
+{
+	FVector playerToEnemyVec = UKismetMathLibrary::GetDirectionUnitVector(GetActorLocation(), EnemyLocation);
+	float dotProductResult = FVector::DotProduct(GetActorForwardVector(), playerToEnemyVec);
 
+	if (dotProductResult >= 50.f)
+	{
+		return "HitReactFront";
+	}
+	else if (dotProductResult < 50.f && dotProductResult > -50.f)
+	{
+		dotProductResult = FVector::DotProduct(GetActorRightVector(), playerToEnemyVec);
+		if (dotProductResult > 0)
+		{
+			return "HitReactRight";
+		}
+		else
+		{
+			return "HitReactLeft";
+		}
+	}
+	else
+	{
+		return "HitReactBack";
+	}
+
+}
+
+void AShooterCharacter::HitReact(AEnemy* enemy, FVector HitLocation)
+{
+	if (CurrentHealth > 0)
+	{
+		if (MeleeImpactSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, MeleeImpactSound, GetActorLocation(), 0.2f);
+		}
+		if (HitReactMontage)
+		{
+			FName montageSection = DecideHitReactMontageSection(HitLocation);
+
+			UAnimInstance* animInst = GetMesh()->GetAnimInstance();
+
+			animInst->Montage_Play(HitReactMontage);
+			animInst->Montage_JumpToSection(montageSection, HitReactMontage);
+		}
+	}
+	
+}
+
+void AShooterCharacter::Die()
+{
+	UAnimInstance* animInst = GetMesh()->GetAnimInstance();
+	if (animInst)
+	{
+		animInst->Montage_Play(DieMontage);
+		animInst->Montage_JumpToSection(FName("Default"), DieMontage);
+	}
+}
+
+void AShooterCharacter::FinishDie()
+{
+	GetMesh()->bPauseAnims = true;
+	DisableInput(UGameplayStatics::GetPlayerController(this, 0));
+}
