@@ -16,9 +16,10 @@ Currently, there are
 - Highlight items
 - Item Widgets
 - HUD
+- Currently there are different types of Grux(enemy) which can chase, patrol and attack.
 
 ### Currently Working on 
-- Enemies
+- Different Enemies
   
 ### TODO
 - Level Designs
