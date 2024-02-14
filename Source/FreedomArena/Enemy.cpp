@@ -61,7 +61,7 @@ AEnemy::AEnemy() :
 
 	//PawnSenseComp = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSense"));
 
-	/*AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerception"));
+	AIPerceptionComp = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerception"));
 	
 	Sight = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("Sight"));
 	Sight->SightRadius = 400.f;
@@ -72,7 +72,7 @@ AEnemy::AEnemy() :
 	Sight->DetectionByAffiliation.bDetectFriendlies = true;
 
 	AIPerceptionComp->ConfigureSense(*Sight);
-	AIPerceptionComp->SetDominantSense(Sight->GetSenseImplementation());*/
+	AIPerceptionComp->SetDominantSense(Sight->GetSenseImplementation());
 
 }
 
@@ -105,7 +105,7 @@ void AEnemy::BeginPlay()
 
 	//PawnSenseComp->OnSeePawn.AddDynamic(this, &AEnemy::OnSeeTarget);
 	
-	//AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::OnPerception);
+	AIPerceptionComp->OnTargetPerceptionUpdated.AddDynamic(this, &AEnemy::OnPerception);
 
 	SetBlackboardPatrolPoints();
 
@@ -404,7 +404,6 @@ void AEnemy::OnSeeTarget(APawn* OtherPawn)
 	AShooterCharacter* target = Cast<AShooterCharacter>(OtherPawn);
 	if (target)
 	{
-		// TODO Linetrace to check if there is any obstacle between enemy and target
 		EnemyAIController->GetBlackboardComponent()->SetValueAsObject(TEXT("Target"), target);
 	}
 	else
